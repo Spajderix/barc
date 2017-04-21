@@ -3,6 +3,119 @@ from urllib import quote, urlencode
 from urllib2 import Request, urlopen
 import ssl
 from base64 import b64encode
+from xml.dom.minidom import parseString, parse, getDOMImplementation
+from datetime import datetime
+
+
+class BESCoreElement(object):
+    pass
+
+class BESAPICoreElement(object):
+    __slots__ = ('base_node')
+
+    def __init__(self, o):
+        try:
+            tmp = o.nodeName
+        except AttributeError as e:
+            raise ValueError('Expecting xml Element')
+        else:
+            self.base_node = o
+
+    @property
+    def Resource(self):
+        return self.base_node.getAttribute('Resource')
+    @Resource.setter
+    def Resource(self, newval):
+        self.base_node.setAttribute('Resource', newval)
+
+class APIComputer(BESAPICoreElement):
+    __slots__ = ('date_format', 'date_format_notz')
+    date_format = r'%a, %d %b %Y %H:%M:%S %z'
+    date_format_notz = r'%a, %d %b %Y %H:%M:%S'
+
+    @property
+    def ID(self):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == 1 and elem.nodeName == 'ID':
+                return elem.childNodes[0].nodeValue
+    @ID.setter
+    def ID(self, newval):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == 1 and elem.nodeName == 'ID':
+                elem.childNodes[0].nodeValue = newval
+
+    @property
+    def LastReportTime(self):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == 1 and elem.nodeName == 'LastReportTime':
+                try:
+                    return datetime.strptime(elem.childNodes[0].nodeValue, self.date_format)
+                except ValueError as e:
+                    # python2.7 in some versions seem to not understand time zone modifiers in time zone, hence:
+                    return datetime.strptime(elem.childNodes[0].nodeValue[:-6], self.date_format_notz)
+    @LastReportTime.setter
+    def LastReportTime(self, newval):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == 1 and elem.nodeName == 'LastReportTime':
+                try:
+                    elem.childNodes[0].nodeValue = datetime.strftime(newval, self.date_format)
+                except ValueError as e:
+                    # once more, for the tz issue
+                    elem.childNodes[0].nodeValue = '{0} +0000'.format(datetime.strftime(newval, self.date_format_notz))
+
+
+class CoreContainer(object):
+    __slots__ = ('xmlo', 'base_node', 'base_node_name', 'elements')
+
+    def __init__(self, file_or_contents=None):
+        self.xmlo = None
+        self.elements = []
+
+        if type(file_or_contents) in (str, unicode, file):
+            self._parse_content(file_or_contents)
+        elif file_or_contents == None:
+            self._create_empty_container()
+        else:
+            raise ValueError('Needs to be file object or string containing xml definition')
+
+    def _create_empty_container(self):
+        impl = getDOMImplementation()
+        self.xmlo = impl.createDocument(None, self.base_node_name, None)
+        self.base_node = self.xmlo.documentElement
+
+        self.base_node.setAttribute('xmlns:xsi', 'http://www.w3.org/2001/XMLSchema-instance')
+        self.base_node.setAttribute('xsi:noNamespaceSchemaLocation', '{0}.xsd'.format(self.base_node_name))
+        self.base_node.appendChild(self.xmlo.createTextNode(''))
+
+    def _parse_content(self, content):
+        if type(content) in (str, unicode):
+            self.xmlo = parseString(content)
+        else:
+            self.xmlo = parse(content)
+        self.base_node = self.xmlo.documentElement
+        if self.base_node.nodeName != self.base_node_name:
+            raise ValueError('Wrong base element. Expected BESAPI Element')
+
+class BESContainer(CoreContainer):
+    base_node_name = 'BES'
+
+class BESAPIContainer(CoreContainer):
+    base_node_name = 'BESAPI'
+
+    def __init__(self, *args, **kwargs):
+        super(BESAPIContainer, self).__init__(*args, **kwargs)
+        self._parse_elements()
+
+    def _parse_elements(self):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == 1:
+                if elem.nodeName == 'Computer':
+                    self.elements.append(APIComputer(elem))
+                else:
+                    self.elements.append(BESAPICoreElement(elem))
+
+
+
 
 class Client(object):
     __slots__ = ('hostname', 'port', 'user', 'password', 'rewrite_resource', '_verify_cert', '_ssl_c', '_urlopen_kwargs')
