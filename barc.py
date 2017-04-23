@@ -28,10 +28,64 @@ class BESAPICoreElement(object):
     def Resource(self, newval):
         self.base_node.setAttribute('Resource', newval)
 
+class APIComputerProperties(object):
+    __slots__ = ('_nodes_list',)
+
+    def __init__(self, nodes_list):
+        self._nodes_list = []
+        for elem in nodes_list:
+            if elem.nodeName == 'Property':
+                self._nodes_list.append(elem)
+
+    def __len__(self):
+        return len(self._nodes_list)
+
+    def __getitem__(self, key):
+        if type(key) not in (str, unicode):
+            raise TypeError('Key should be a string or unicode')
+        if self.keys().count(key) == 0:
+            raise KeyError('Key {0} does not exist'.format(key))
+        elif self.keys().count(key) > 1:
+            tmplist = []
+            for elem in self._nodes_list:
+                if elem.attributes['Name'].nodeValue == key:
+                    tmplist.append(elem.childNodes[0].nodeValue)
+            return tmplist
+        else:
+            for elem in self._nodes_list:
+                if elem.attributes['Name'].nodeValue == key:
+                    return elem.childNodes[0].nodeValue
+        raise KeyError('Key {0} does not exist'.format(key))
+
+    def __setitem__(self, key, value):
+        raise NotImplementedError()
+
+    def __iter__(self):
+        for elem in self._nodes_list:
+            yield elem
+
+    def keys(self):
+        return [elem.attributes['Name'].nodeValue for elem in self._nodes_list]
+    def values(self):
+        return [elem.childNodes[0].nodeValue for elem in self._nodes_list]
+    def has_key(self, key):
+        return key in self.keys()
+    def iteritems(self):
+        uniq_keys = []
+        for elem in self.keys():
+            if elem not in uniq_keys:
+                uniq_keys.append(elem)
+        for elem in uniq_keys:
+            yield (elem, self.__getitem__(elem))
+
 class APIComputer(BESAPICoreElement):
-    __slots__ = ('date_format', 'date_format_notz')
+    __slots__ = ('date_format', 'date_format_notz', 'Properties')
     date_format = r'%a, %d %b %Y %H:%M:%S %z'
     date_format_notz = r'%a, %d %b %Y %H:%M:%S'
+
+    def __init__(self, *args, **kwargs):
+        super(APIComputer, self).__init__(*args, **kwargs)
+        self.Properties = APIComputerProperties([x for x in self.base_node.childNodes if x.nodeName == 'Property'])
 
     @property
     def ID(self):
