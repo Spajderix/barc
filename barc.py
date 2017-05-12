@@ -5,6 +5,7 @@ import ssl
 from base64 import b64encode
 from xml.dom.minidom import parseString, parse, getDOMImplementation
 from datetime import datetime
+import re
 
 
 class BESCoreElement(object):
@@ -151,12 +152,17 @@ class CoreContainer(object):
             raise ValueError('Wrong base element. Expected BESAPI Element')
 
 class BESContainer(CoreContainer):
-    base_node_name = 'BES'
-
-class BESAPIContainer(CoreContainer):
-    base_node_name = 'BESAPI'
+    __slots__ = ()
 
     def __init__(self, *args, **kwargs):
+        self.base_node_name = 'BES'
+        super(BESContainer, self).__init__(*args, **kwargs)
+
+class BESAPIContainer(CoreContainer):
+    __slots__ = ()
+
+    def __init__(self, *args, **kwargs):
+        self.base_node_name = 'BESAPI'
         super(BESAPIContainer, self).__init__(*args, **kwargs)
         self._parse_elements()
 
@@ -222,9 +228,22 @@ class Client(object):
         req.add_header('Authorization', auth_token)
         return req
 
-    def get(self, resource):
+    def get(self, resource, raw_response=False):
         req = self._build_base_request(resource)
-        return urlopen(req, **self._urlopen_kwargs).read()
+        #return urlopen(req, **self._urlopen_kwargs).read()
+        o = urlopen(req, **self._urlopen_kwargs)
+        if o.code != 200:
+            raise ValueError('Exit code different than 200')
+        else:
+            contents = o.read()
+            if raw_response:
+                return contents
+            if re.search(r'\<BESAPI\s+', contents, re.MULTILINE) != None:
+                return BESAPIContainer(contents)
+            elif re.search(r'\<BES\s+', contents, re.MULTILINE) != None:
+                return BESContainer(contents)
+            else:
+                raise ValueError('Not BESAPI nor BES xml element found')
 
     def post(self):
         raise NotImplementedError()
