@@ -133,6 +133,63 @@ class CoreContainer(object):
         else:
             raise ValueError('Needs to be file object or string containing xml definition')
 
+    def __len__(self):
+        return len(self.elements)
+
+    def __getitem__(self, k):
+        if type(k) is not int:
+            raise TypeError('Incorrect index type, should be int')
+        elif k < 0 or k >= len(self.elements):
+            raise IndexError('Index outside of list size')
+        return self.elements[k]
+
+    def __setitem__(self, k, v):
+        if not isinstance(v, BESAPICoreElement):
+            raise TypeError('Value is not a subclass of BESAPICoreElement')
+        elif type(k) is not int:
+            raise TypeError('Incorrect index type, should be int')
+        elif k < 0 or k >= len(self.elements):
+            raise IndexError('Index outside of list size')
+
+        for elem in self.base_node.childNodes:
+            if elem.isSameNode(v.base_node):
+                raise ValueError('This object is already added')
+
+        to_replace = self.elements.pop(k)
+        self.base_node.replaceChild(v.base_node, to_replace.base_node)
+        self.elements.insert(k, v)
+        return True
+
+    def __delitem__(self, k):
+        if type(k) is not int:
+            raise TypeError('Incorrect index type, should be int')
+        elif k < 0 or k >= len(self.elements):
+            raise IndexError('Index outside of list size')
+        to_remove = self.elements.pop(k)
+        self.base_node.removeChild(to_remove.base_node)
+        return True
+
+    def append(self, v):
+        if not isinstance(v, BESAPICoreElement):
+            raise TypeError('Value is not a subclass of BESAPICoreElement')
+
+        for elem in self.base_node.childNodes:
+            if elem.isSameNode(v.base_node):
+                raise ValueError('This object is already added')
+
+        self.base_node.appendChild(v.base_node)
+        self.elements.append(v)
+
+    def pop(self, k):
+        if type(k) is not int:
+            raise TypeError('Incorrect index type, should be int')
+        elif k < 0 or k >= len(self.elements):
+            raise IndexError('Index outside of list size')
+
+        to_pop = self.elements.pop(k)
+        self.base_node.removeChild(to_pop.base_node)
+        return to_pop
+
     def _create_empty_container(self):
         impl = getDOMImplementation()
         self.xmlo = impl.createDocument(None, self.base_node_name, None)
