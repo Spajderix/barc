@@ -8,6 +8,10 @@ from datetime import datetime
 import re
 
 
+date_format = r'%a, %d %b %Y %H:%M:%S %z'
+date_format_notz = r'%a, %d %b %Y %H:%M:%S'
+
+
 class BESCoreElement(object):
     pass
 
@@ -86,9 +90,7 @@ class APIComputerProperties(object):
             yield (elem, self.__getitem__(elem))
 
 class APIComputer(BESAPICoreElement):
-    __slots__ = ('date_format', 'date_format_notz', 'Properties')
-    date_format = r'%a, %d %b %Y %H:%M:%S %z'
-    date_format_notz = r'%a, %d %b %Y %H:%M:%S'
+    __slots__ = ('Properties', )
 
     def __init__(self, *args, **kwargs):
         super(APIComputer, self).__init__(*args, **kwargs)
@@ -110,19 +112,19 @@ class APIComputer(BESAPICoreElement):
         for elem in self.base_node.childNodes:
             if elem.nodeType == 1 and elem.nodeName == 'LastReportTime':
                 try:
-                    return datetime.strptime(elem.childNodes[0].nodeValue, self.date_format)
+                    return datetime.strptime(elem.childNodes[0].nodeValue, date_format)
                 except ValueError as e:
                     # python2.7 in some versions seem to not understand time zone modifiers in time zone, hence:
-                    return datetime.strptime(elem.childNodes[0].nodeValue[:-6], self.date_format_notz)
+                    return datetime.strptime(elem.childNodes[0].nodeValue[:-6], date_format_notz)
     @LastReportTime.setter
     def LastReportTime(self, newval):
         for elem in self.base_node.childNodes:
             if elem.nodeType == 1 and elem.nodeName == 'LastReportTime':
                 try:
-                    elem.childNodes[0].nodeValue = datetime.strftime(newval, self.date_format)
+                    elem.childNodes[0].nodeValue = datetime.strftime(newval, date_format)
                 except ValueError as e:
                     # once more, for the tz issue
-                    elem.childNodes[0].nodeValue = '{0} +0000'.format(datetime.strftime(newval, self.date_format_notz))
+                    elem.childNodes[0].nodeValue = '{0} +0000'.format(datetime.strftime(newval, date_format_notz))
 
 
 
@@ -172,6 +174,56 @@ class APIOperatorSite(APIGenericSite):
 class APIActionSite(APIGenericSite):
     pass
 
+
+
+
+class APIGenericContent(BESAPICoreElement):
+    @property
+    def Name(self):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == 1 and elem.nodeName == 'Name':
+                return elem.childNodes[0].nodeValue
+    @Name.setter
+    def Name(self, newvalue):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == 1 and elem.nodeName == 'Name':
+                elem.childNodes[0].nodeValue = newvalue
+
+    @property
+    def ID(self):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == 1 and elem.nodeName == 'ID':
+                return elem.childNodes[0].nodeValue
+    @ID.setter
+    def ID(self, newvalue):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == 1 and elem.nodeName == 'ID':
+                elem.childNodes[0].nodeValue = newvalue
+
+    @property
+    def LastModified(self):
+        try:
+            return datetime.strptime(self.base_node.attributes['LastModified'].nodeValue, date_format)
+        except ValueError as e:
+            # when not understanding timezone, try this
+            return datetime.strptime(self.base_node.attributes['LastModified'].nodeValue[:-6], date_format_notz)
+    @LastModified.setter
+    def LastModified(self, newvalue):
+        try:
+            self.base_node.attributes['LastModified'] = datetime.strftime(newvalue, date_format)
+        except ValueError as e:
+            self.base_node.attributes['LastModified'] = '{0} +0000'.format(datetime.strftime(newvalue, date_format_notz))
+
+class APIFixlet(APIGenericContent):
+    pass
+class APITask(APIGenericContent):
+    pass
+class APIAnalysis(APIGenericContent):
+    pass
+class APIBaseline(APIGenericContent):
+    pass
+class APIAction(APIGenericContent):
+    pass
 
 
 
@@ -296,6 +348,14 @@ class BESAPIContainer(CoreContainer):
                     self.elements.append(APIOperatorSite(elem))
                 elif elem.nodeName == 'ActionSite':
                     self.elements.append(APIActionSite(elem))
+                elif elem.nodeName == 'Fixlet':
+                    self.elements.append(APIFixlet(elem))
+                elif elem.nodeName == 'Task':
+                    self.elements.append(APITask(elem))
+                elif elem.nodeName == 'Analysis':
+                    self.elements.append(APIAnalysis(elem))
+                elif elem.nodeName == 'Baseline':
+                    self.elements.append(APIBaseline(elem))
                 else:
                     self.elements.append(BESAPICoreElement(elem))
 
