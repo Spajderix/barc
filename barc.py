@@ -29,6 +29,12 @@ class BESAPICoreElement(object):
     def Resource(self, newval):
         self.base_node.setAttribute('Resource', newval)
 
+
+
+
+
+
+
 class APIComputerProperties(object):
     __slots__ = ('_nodes_list',)
 
@@ -117,6 +123,60 @@ class APIComputer(BESAPICoreElement):
                 except ValueError as e:
                     # once more, for the tz issue
                     elem.childNodes[0].nodeValue = '{0} +0000'.format(datetime.strftime(newval, self.date_format_notz))
+
+
+
+
+
+class APIGenericSite(BESAPICoreElement):
+    @property
+    def Name(self):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == 1 and elem.nodeName == 'Name':
+                return elem.childNodes[0].nodeValue
+    @Name.setter
+    def Name(self, newvalue):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == 1 and elem.nodeName == 'Name':
+                elem.childNodes[0].nodeValue = newvalue
+
+    @property
+    def DisplayName(self):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == 1 and elem.nodeName == 'DisplayName':
+                return elem.childNodes[0].nodeValue
+    @DisplayName.setter
+    def DisplayName(self, newvalue):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == 1 and elem.nodeName == 'DisplayName':
+                elem.childNodes[0].nodeValue = newvalue
+
+    @property
+    def GatherURL(self):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == 1 and elem.nodeName == 'GatherURL':
+                return elem.childNodes[0].nodeValue
+    @GatherURL.setter
+    def GatherURL(self, newvalue):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == 1 and elem.nodeName == 'GatherURL':
+                elem.childNodes[0].nodeValue = newvalue
+
+
+class APIExternalSite(APIGenericSite):
+    pass
+class APICustomSite(APIGenericSite):
+    pass
+class APIOperatorSite(APIGenericSite):
+    pass
+class APIActionSite(APIGenericSite):
+    pass
+
+
+
+
+
+
 
 
 class CoreContainer(object):
@@ -228,6 +288,14 @@ class BESAPIContainer(CoreContainer):
             if elem.nodeType == 1:
                 if elem.nodeName == 'Computer':
                     self.elements.append(APIComputer(elem))
+                elif elem.nodeName == 'ExternalSite':
+                    self.elements.append(APIExternalSite(elem))
+                elif elem.nodeName == 'CustomSite':
+                    self.elements.append(APICustomSite(elem))
+                elif elem.nodeName == 'OperatorSite':
+                    self.elements.append(APIOperatorSite(elem))
+                elif elem.nodeName == 'ActionSite':
+                    self.elements.append(APIActionSite(elem))
                 else:
                     self.elements.append(BESAPICoreElement(elem))
 
