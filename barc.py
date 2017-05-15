@@ -13,10 +13,68 @@ date_format_notz = r'%a, %d %b %Y %H:%M:%S'
 
 
 class BESCoreElement(object):
-    pass
+    __slots__ = ('base_node', '_base_node_name', '_field_order')
+
+    def __init__(self, o=None):
+        #self._field_order = []
+        if o == None:
+            self._create_empty_element()
+        else:
+            try:
+                tmp = o.nodeName
+            except AttributeError as e:
+                raise ValueError('Expecting xml Element')
+            else:
+                self.base_node = o
+
+    def _create_empty_element(self):
+        impl = getDOMImplementation()
+        xmlo = impl.createDocument(None, self._base_node_name, None)
+        self.base_node = xmlo.childNodes[0]
+        self.base_node.appendChild(xmlo.createTextNode(''))
+
+    def _exists_child_elem(self, ename):
+        for elem in self.base_node.childNodes:
+            if elem.nodeName == ename:
+                return True
+        return False
+
+    def _create_child_elem(self, ename, simple_elem = True):
+        findex = None
+        for x in xrange(len(self._field_order)):
+            if self._field_order[x] == ename:
+                findex = x
+                break
+        if findex == None:
+            raise NotImplementedError('Not sure if this is going to ever work')
+        else:
+            # now create new node
+            new_node = self.base_node.ownerDocument.createElement(ename)
+            if simple_elem:
+                new_node.appendChild(self.base_node.ownerDocument.createTextNode(''))
+            putbeforeme = None
+            for elem in self.base_node.childNodes:
+                if elem.nodeType == 1 and elem.nodeName not in self._field_order[:findex]:
+                    putbeforeme = elem
+                    break
+            if putbeforeme != None:
+                self.base_node.insertBefore(new_node, putbeforeme)
+            else:
+                self.base_node.appendChild(new_node)
+
+    def _value_for_elem(self, ename):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == 1 and elem.nodeName == ename:
+                return elem.childNodes[0].nodeValue
+        return None
+
+    def _set_newvalue_for_elem(self, ename, newvalue):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == 1 and elem.nodeName == ename:
+                elem.childNodes[0].nodeValue = newvalue
 
 class BESAPICoreElement(object):
-    __slots__ = ('base_node')
+    __slots__ = ('base_node',)
 
     def __init__(self, o):
         try:
@@ -38,7 +96,122 @@ class BESAPICoreElement(object):
 
 
 
+#### BES Elements ####
+class Site(BESCoreElement):
+    def __init__(self, *args, **kwargs):
+        try:
+            tmp = self._base_node_name
+        except AttributeError as e:
+            self._base_node_name = 'Site'
+        super(Site, self).__init__(*args, **kwargs)
+        self._field_order = ('Name', 'GatherURL', 'Description', 'Domain', 'GlobalReadPermission', 'Subscription')
+    def _create_empty_element(self, *args, **kwargs):
+        super(Site, self)._create_empty_element(*args, **kwargs)
+        name_node = self.base_node.ownerDocument.createElement('Name')
+        name_node.appendChild(self.base_node.ownerDocument.createTextNode(''))
+        self.base_node.appendChild(name_node)
 
+    @property
+    def Name(self):
+        return self._value_for_elem('Name')
+    @Name.setter
+    def Name(self, newvalue):
+        if len(newvalue) > 255:
+            raise ValueError('Name can only be 255 characters')
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == 1 and elem.nodeName == 'Name':
+                elem.childNodes[0].nodeValue = newvalue
+
+    @property
+    def GatherURL(self):
+        return self._value_for_elem('GatherURL')
+    @GatherURL.setter
+    def GatherURL(self, newvalue):
+        if not self._exists_child_elem('GatherURL'):
+            self._create_child_elem('GatherURL')
+        self._set_newvalue_for_elem('GatherURL', newvalue)
+
+    @property
+    def Description(self):
+        return self._value_for_elem('Description')
+    @Description.setter
+    def Description(self, newvalue):
+        if not self._exists_child_elem('Description'):
+            self._create_child_elem('Description')
+        self._set_newvalue_for_elem('Description', newvalue)
+
+    @property
+    def Domain(self):
+        return self._value_for_elem('Domain')
+    @Domain.setter
+    def Domain(self, newvalue):
+        if len(newvalue) != 4:
+            raise ValueError('Domain must be a 4-character string')
+        if not self._exists_child_elem('Domain'):
+            self._create_child_elem('Domain')
+        self._set_newvalue_for_elem('Domain', newvalue)
+
+    @property
+    def GlobalReadPermission(self):
+        return self._value_for_elem('GlobalReadPermission')
+    @GlobalReadPermission.setter
+    def GlobalReadPermission(self, newvalue):
+        if newvalue not in ('true', 'false'):
+            raise ValueError('GlobalReadPermission can only be true or false')
+        if not self._exists_child_elem('GlobalReadPermission'):
+            self._create_child_elem('GlobalReadPermission')
+        self._set_newvalue_for_elem('GlobalReadPermission')
+
+class ActionSite(Site):
+    def __init__(self, *args, **kwargs):
+        self._base_node_name = 'ActionSite'
+        super(ActionSite, self).__init__(*args, **kwargs)
+class CustomSite(Site):
+    def __init__(self, *args, **kwargs):
+        self._base_node_name = 'CustomSite'
+        super(CustomSite, self).__init__(*args, **kwargs)
+class ExternalSite(Site):
+    def __init__(self, *args, **kwargs):
+        self._base_node_name = 'ExternalSite'
+        super(ExternalSite, self).__init__(*args, **kwargs)
+        self._field_order = self._field_order + ('Masthead',)
+    @property
+    def Masthead(self):
+        return self._value_for_elem('Masthead')
+    @Masthead.setter
+    def Masthead(self, newvalue):
+        if not self._exists_child_elem('Masthead'):
+            self._create_child_elem('Masthead')
+        self._set_newvalue_for_elem('Masthead', newvalue)
+
+class OperatorSite(Site):
+    def __init__(self, *args, **kwargs):
+        self._base_node_name = 'OperatorSite'
+        super(OperatorSite, self).__init__(*args, **kwargs)
+        self._field_order = ('Name', 'GatherURL')
+    @property
+    def Name(self):
+        return self._value_for_elem('Name')
+    @Name.setter
+    def Name(self, newvalue):
+        if len(newvalue) > 255:
+            raise ValueError('Name can only be 255 characters')
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == 1 and elem.nodeName == 'Name':
+                elem.childNodes[0].nodeValue = newvalue
+    @property
+    def GatherURL(self):
+        return self._value_for_elem('GatherURL')
+    @GatherURL.setter
+    def GatherURL(self, newvalue):
+        if not self._exists_child_elem('GatherURL'):
+            self._create_child_elem('GatherURL')
+        self._set_newvalue_for_elem('GatherURL', newvalue)
+
+
+
+
+#### BESAPI Elements ####
 class APIComputerProperties(object):
     __slots__ = ('_nodes_list',)
 
@@ -256,8 +429,8 @@ class CoreContainer(object):
         return self.elements[k]
 
     def __setitem__(self, k, v):
-        if not isinstance(v, BESAPICoreElement):
-            raise TypeError('Value is not a subclass of BESAPICoreElement')
+        if not isinstance(v, BESAPICoreElement) and not isinstance(v, BESCoreElement):
+            raise TypeError('Value is not a subclass of BESAPICoreElement or BESCoreElement')
         elif type(k) is not int:
             raise TypeError('Incorrect index type, should be int')
         elif k < 0 or k >= len(self.elements):
@@ -282,7 +455,7 @@ class CoreContainer(object):
         return True
 
     def append(self, v):
-        if not isinstance(v, BESAPICoreElement):
+        if not isinstance(v, BESAPICoreElement) and not isinstance(v, BESCoreElement):
             raise TypeError('Value is not a subclass of BESAPICoreElement')
 
         for elem in self.base_node.childNodes:
@@ -326,6 +499,21 @@ class BESContainer(CoreContainer):
     def __init__(self, *args, **kwargs):
         self.base_node_name = 'BES'
         super(BESContainer, self).__init__(*args, **kwargs)
+        self._parse_elements()
+
+    def _parse_elements(self):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == 1:
+                if elem.nodeName == 'ExternalSite':
+                    self.elements.append(ExternalSite(elem))
+                elif elem.nodeName == 'ActionSite':
+                    self.elements.append(ActionSite(elem))
+                elif elem.nodeName == 'CustomSite':
+                    self.elements.append(CustomSite(elem))
+                elif elem.nodeName == 'OperatorSite':
+                    self.elements.append(OperatorSite(elem))
+                else:
+                    self.elements.append(BESCoreElement(elem))
 
 class BESAPIContainer(CoreContainer):
     __slots__ = ()
