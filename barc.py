@@ -603,7 +603,7 @@ class Client(object):
 
     def get(self, resource, raw_response=False):
         req = self._build_base_request(resource)
-        #return urlopen(req, **self._urlopen_kwargs).read()
+
         o = urlopen(req, **self._urlopen_kwargs)
         if o.code != 200:
             raise ValueError('Exit code different than 200')
@@ -620,5 +620,24 @@ class Client(object):
 
     def post(self):
         raise NotImplementedError()
-    def delete(self):
+    def put(self):
         raise NotImplementedError()
+    def delete(self, resource, raw_response=False):
+        req = self._build_base_request(resource)
+        req.get_method = lambda: 'DELETE'
+
+        o = urlopen(req, **self._urlopen_kwargs)
+        if o.code != 200:
+            raise ValueError('Exit code different than 200')
+        else:
+            contents = o.read()
+            if raw_response:
+                return contents
+            if re.search(r'\<BESAPI\s+', contents, re.MULTILINE) != None:
+                return BESAPIContainer(contents)
+            elif re.search(r'\<BES\s+', contents, re.MULTILINE) != None:
+                return BESContainer(contents)
+            elif contents == 'ok':
+                return True
+            else:
+                return contents
