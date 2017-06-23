@@ -65,13 +65,22 @@ class BESCoreElement(object):
     def _value_for_elem(self, ename):
         for elem in self.base_node.childNodes:
             if elem.nodeType == 1 and elem.nodeName == ename:
-                return elem.childNodes[0].nodeValue
+                try:
+                    return elem.childNodes[0].nodeValue
+                except IndexError as e:
+                    return u''
         return None
 
     def _set_newvalue_for_elem(self, ename, newvalue):
         for elem in self.base_node.childNodes:
             if elem.nodeType == 1 and elem.nodeName == ename:
-                elem.childNodes[0].nodeValue = newvalue
+                # first empty out previous value
+                while (len(elem.childNodes)) != 0:
+                    elem.childNodes.pop()
+                # now create new text node
+                tnode = self.base_node.ownerDocument.createTextNode(newvalue)
+                # now append the value to doctree
+                elem.childNodes.append(tnode)
 
 class BESAPICoreElement(object):
     __slots__ = ('base_node',)
@@ -97,6 +106,23 @@ class BESAPICoreElement(object):
 
 
 #### BES Elements ####
+class SiteSubscription(BESCoreElement):
+    def __init__(self, *args, **kwargs):
+        self._base_node_name = 'Subscription'
+        super(SiteSubscription, self).__init__(*args, **kwargs)
+        self._field_order = ('Mode', 'CustomGroup')
+
+    @property
+    def Mode(self):
+        return self._value_for_elem('Mode')
+    @Mode.setter
+    def Mode(self, newvalue):
+        if newvalue not in ('All', 'None', 'AdHoc', 'Custom'):
+            raise ValueError('Mode can only be All, None, AdHoc or Custom')
+        if not self._exists_child_elem('Mode'):
+            self._create_child_elem('Mode')
+        self._set_newvalue_for_elem('Mode', newvalue)
+
 class Site(BESCoreElement):
     def __init__(self, *args, **kwargs):
         try:
@@ -161,6 +187,19 @@ class Site(BESCoreElement):
         if not self._exists_child_elem('GlobalReadPermission'):
             self._create_child_elem('GlobalReadPermission')
         self._set_newvalue_for_elem('GlobalReadPermission')
+
+    @property
+    def Subscription(self):
+        if not self._exists_child_elem('Subscription'):
+            self._create_child_elem('Subscription')
+        try:
+            return self._subscription_o
+        except AttributeError as e:
+            for elem in self.base_node.childNodes:
+                if elem.nodeType == 1 and elem.nodeName == 'Subscription':
+                    self._subscription_o = SiteSubscription(elem)
+                    break
+            return self._subscription_o
 
 class ActionSite(Site):
     def __init__(self, *args, **kwargs):
