@@ -3,7 +3,7 @@ from urllib import quote, urlencode
 from urllib2 import Request, urlopen
 import ssl
 from base64 import b64encode
-from xml.dom.minidom import parseString, parse, getDOMImplementation
+from xml.dom.minidom import parseString, parse, getDOMImplementation, Node
 from datetime import datetime
 import re
 
@@ -54,7 +54,7 @@ class BESCoreElement(object):
                 new_node.appendChild(self.base_node.ownerDocument.createTextNode(''))
             putbeforeme = None
             for elem in self.base_node.childNodes:
-                if elem.nodeType == 1 and elem.nodeName not in self._field_order[:findex]:
+                if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName not in self._field_order[:findex]:
                     putbeforeme = elem
                     break
             if putbeforeme != None:
@@ -64,7 +64,7 @@ class BESCoreElement(object):
 
     def _value_for_elem(self, ename):
         for elem in self.base_node.childNodes:
-            if elem.nodeType == 1 and elem.nodeName == ename:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == ename:
                 try:
                     return elem.childNodes[0].nodeValue
                 except IndexError as e:
@@ -73,7 +73,7 @@ class BESCoreElement(object):
 
     def _set_newvalue_for_elem(self, ename, newvalue):
         for elem in self.base_node.childNodes:
-            if elem.nodeType == 1 and elem.nodeName == ename:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == ename:
                 # first empty out previous value
                 while (len(elem.childNodes)) != 0:
                     elem.childNodes.pop()
@@ -106,6 +106,249 @@ class BESAPICoreElement(object):
 
 
 #### BES Elements ####
+class MIMEField(BESCoreElement):
+    def __init__(self, *args, **kwargs):
+        self._base_node_name = 'MIMEField'
+        super(MIMEField, self).__init__(*args, **kwargs)
+        self._field_order = ('Name', 'Value')
+    def _create_empty_element(self, *args, **kwargs):
+        super(MIMEField, self)._create_empty_element(*args, **kwargs)
+        name_node = self.base_node.ownerDocument.createElement('Name')
+        name_node.appendChild(self.base_node.ownerDocument.createTextNode(''))
+        value_node = self.base_node.ownerDocument.createElement('Value')
+        value_node.appendChild(self.base_node.ownerDocument.createTextNode(''))
+        self.base_node.appendChild(name_node)
+        self.base_node.appendChild(value_node)
+
+    @property
+    def Name(self):
+        return self._value_for_elem('Name')
+    @Name.setter
+    def Name(self, newvalue):
+        if not self._exists_child_elem('Name'):
+            self._create_child_elem('Name')
+        self._set_newvalue_for_elem('Name', newvalue)
+    @property
+    def Value(self):
+        return self._value_for_elem('Value')
+    @Value.setter
+    def Value(self, newvalue):
+        if not self._exists_child_elem('Value'):
+            self._create_child_elem('Value')
+        self._set_newvalue_for_elem('Value', newvalue)
+
+class BaseFixlet(BESCoreElement):
+    def __init__(self, *args, **kwargs):
+        try:
+            tmp = self._base_node_name
+        except AttributeError as e:
+            self._base_node_name = 'BaseFixlet'
+        super(BaseFixlet, self).__init__(*args, **kwargs)
+        self._field_order = ('Title', 'Description', 'Relevance', 'GroupRelevance', 'Category', 'WizardData', 'DownloadSize', 'Source', 'SourceID', 'SourceReleaseDate', 'CVENames', 'SANSID', 'MIMEField', 'Domain', 'Delay')
+    def _create_empty_element(self, *args, **kwargs):
+        super(BaseFixlet, self)._create_empty_element(*args, **kwargs)
+        title_node = self.base_node.ownerDocument.createElement('Title')
+        title_node.appendChild(self.base_node.ownerDocument.createTextNode(''))
+        description_node = self.base_node.ownerDocument.createElement('Description')
+        description_node.appendChild(self.base_node.ownerDocument.createTextNode(''))
+        relevance_node = self.base_node.ownerDocument.createElement('Relevance')
+        relevance_node.appendChild(self.base_node.ownerDocument.createTextNode(''))
+        self.base_node.appendChild(title_node)
+        self.base_node.appendChild(description_node)
+        self.base_node.appendChild(relevance_node)
+
+    @property
+    def Title(self):
+        return self._value_for_elem('Title')
+    @Title.setter
+    def Title(self, newvalue):
+        if len(newvalue) < 1 or len(newvalue) > 255:
+            raise ValueError('Title can be between 1 and 255 characters long')
+        if not self._exists_child_elem('Title'):
+            self._create_child_elem('Title')
+        self._set_newvalue_for_elem('Title', newvalue)
+
+    @property
+    def Description(self):
+        return self._value_for_elem('Description')
+    @Description.setter
+    def Description(self, newvalue):
+        if not self._exists_child_elem('Description'):
+            self._create_child_elem('Description')
+        self._set_newvalue_for_elem('Description', newvalue)
+
+    @property
+    def Relevance(self):
+        rlist = []
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'Relevance':
+                rlist.append(elem.childNodes[0].nodeValue)
+        return rlist
+    @Relevance.setter
+    def Relevance(self, newvalue):
+        if type(newvalue) not in (list, tuple):
+            raise TypeError('Always provide a list of relevance clauses to add')
+        # first clear all relevance elements
+        to_remove = []
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'Relevance':
+                to_remove.append(elem)
+        for elem in to_remove:
+            self.base_node.removeChild(elem)
+        # now add all new relevance elements
+        for x in xrange(len(newvalue)):
+            self._create_child_elem('Relevance')
+        # and add all proper values
+        r_nodes = self.base_node.getElementsByTagName('Relevance')
+        for x in xrange(len(newvalue)):
+            r_nodes[x].childNodes[0].nodeValue = newvalue[x]
+
+    @property
+    def Category(self):
+        return self._value_for_elem('Category')
+    @Category.setter
+    def Category(self, newvalue):
+        if not self._exists_child_elem('Category'):
+            self._create_child_elem('Category')
+        self._set_newvalue_for_elem('Category', newvalue)
+
+    @property
+    def DownloadSize(self):
+        return self._value_for_elem('DownloadSize')
+    @DownloadSize.setter
+    def DownloadSize(self, newvalue):
+        if type(newvalue) is not int:
+            raise TypeError('Needs to be an integer')
+        if newvalue < 0:
+            raise TypeError('Needs to be more or equal to 0')
+        if not self._exists_child_elem('DownloadSize'):
+            self._create_child_elem('DownloadSize')
+        self._set_newvalue_for_elem('DownloadSize', newvalue)
+
+    @property
+    def Source(self):
+        return self._value_for_elem('Source')
+    @Source.setter
+    def Source(self, newvalue):
+        if not self._exists_child_elem('Source'):
+            self._create_child_elem('Source')
+        self._set_newvalue_for_elem('Source', newvalue)
+
+    @property
+    def SourceID(self):
+        return self._value_for_elem('SourceID')
+    @SourceID.setter
+    def SourceID(self, newvalue):
+        if not self._exists_child_elem('SourceID'):
+            self._create_child_elem('SourceID')
+        self._set_newvalue_for_elem('SourceID', newvalue)
+
+    @property
+    def SourceReleaseDate(self):
+        return self._value_for_elem('SourceReleaseDate')
+    @SourceReleaseDate.setter
+    def SourceReleaseDate(self, newvalue):
+        if not self._exists_child_elem('SourceReleaseDate'):
+            self._create_child_elem('SourceReleaseDate')
+        self._set_newvalue_for_elem('SourceReleaseDate', newvalue)
+
+    @property
+    def SourceSeverity(self):
+        return self._value_for_elem('SourceSeverity')
+    @SourceSeverity.setter
+    def SourceSeverity(self, newvalue):
+        if not self._exists_child_elem('SourceSeverity'):
+            self._create_child_elem('SourceSeverity')
+        self._set_newvalue_for_elem('SourceSeverity', newvalue)
+
+    @property
+    def CVSNames(self):
+        return self._value_for_elem('CVSNames')
+    @CVSNames.setter
+    def CVSNames(self, newvalue):
+        if not self._exists_child_elem('CVSNames'):
+            self._create_child_elem('CVSNames')
+        self._set_newvalue_for_elem('CVSNames', newvalue)
+
+    @property
+    def SANSID(self):
+        return self._value_for_elem('SANSID')
+    @SANSID.setter
+    def SANSID(self, newvalue):
+        if not self._exists_child_elem('SANSID'):
+            self._create_child_elem('SANSID')
+        self._set_newvalue_for_elem('SANSID', newvalue)
+
+    @property
+    def MIMEFields(self):
+        m_list = []
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'MIMEField':
+                m_list.append(MIMEField(elem))
+        return m_list
+    @MIMEFields.setter
+    def MIMEFields(self, newvalue):
+        if type(newvalue) not in (list, tuple):
+            raise TypeError('Always provide a list of relevance clauses to add')
+        for elem in newvalue:
+            if type(elem) is not MIMEField:
+                raise TypeError('List should contain MIMEField objects')
+        # first clear all relevance elements
+        to_remove = []
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'MIMEField':
+                to_remove.append(elem)
+        for elem in to_remove:
+            self.base_node.removeChild(elem)
+        # now add all new relevance elements
+        for x in xrange(len(newvalue)):
+            self._create_child_elem('MIMEField')
+        # and add all proper values
+        m_nodes = self.base_node.getElementsByTagName('MIMEField')
+        for x in xrange(len(newvalue)):
+            #r_nodes[x].childNodes[0].nodeValue = newvalue[x]
+            self.base_node.replaceChild(newvalue[x].base_node, m_nodes[x])
+
+
+    @property
+    def Domain(self):
+        return self._value_for_elem('Domain')
+    @Domain.setter
+    def Domain(self, newvalue):
+        if type(newvalue) not in (str, unicode):
+            raise TypeError('Needs to be string or unicode')
+        if len(newvalue) != 4:
+            raise ValueError('Domain needs to be exactly 4 characters long')
+        if not self._exists_child_elem('Domain'):
+            self._create_child_elem('Domain')
+        self._set_newvalue_for_elem('Domain', newvalue)
+
+    @property
+    def Delay(self):
+        return self._value_for_elem('Delay')
+    @Delay.setter
+    def Delay(self, newvalue):
+        if re.search('^P([0-9]+D)?(T([0-9]+H)?([0-9]+M)?([0-9]+(\.[0-9]{1,6})?S)?)?$', newvalue) is None:
+            raise ValueError('Incorrectly formatted delay duration')
+        if not self._exists_child_elem('Delay'):
+            self._create_child_elem('Delay')
+        self._set_newvalue_for_elem('Delay', newvalue)
+
+
+
+
+class Fixlet(BaseFixlet):
+    def __init__(self, *args, **kwargs):
+        self._base_node_name = 'Fixlet'
+        super(Fixlet, self).__init__(*args, **kwargs)
+        self._field_order = self._field_order + ('DefaultAction', 'Action')
+
+class Task(BaseFixlet):
+    def __init__(self, *args, **kwargs):
+        self._base_node_name = 'Task'
+        super(Task, self).__init__(*args, **kwargs)
+        self._field_order = self._field_order + ('DefaultAction', 'Action')
+
 class SiteSubscription(BESCoreElement):
     def __init__(self, *args, **kwargs):
         self._base_node_name = 'Subscription'
@@ -145,7 +388,7 @@ class Site(BESCoreElement):
         if len(newvalue) > 255:
             raise ValueError('Name can only be 255 characters')
         for elem in self.base_node.childNodes:
-            if elem.nodeType == 1 and elem.nodeName == 'Name':
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'Name':
                 elem.childNodes[0].nodeValue = newvalue
 
     @property
@@ -196,7 +439,7 @@ class Site(BESCoreElement):
             return self._subscription_o
         except AttributeError as e:
             for elem in self.base_node.childNodes:
-                if elem.nodeType == 1 and elem.nodeName == 'Subscription':
+                if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'Subscription':
                     self._subscription_o = SiteSubscription(elem)
                     break
             return self._subscription_o
@@ -236,7 +479,7 @@ class OperatorSite(Site):
         if len(newvalue) > 255:
             raise ValueError('Name can only be 255 characters')
         for elem in self.base_node.childNodes:
-            if elem.nodeType == 1 and elem.nodeName == 'Name':
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'Name':
                 elem.childNodes[0].nodeValue = newvalue
     @property
     def GatherURL(self):
@@ -311,18 +554,18 @@ class APIComputer(BESAPICoreElement):
     @property
     def ID(self):
         for elem in self.base_node.childNodes:
-            if elem.nodeType == 1 and elem.nodeName == 'ID':
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'ID':
                 return elem.childNodes[0].nodeValue
     @ID.setter
     def ID(self, newval):
         for elem in self.base_node.childNodes:
-            if elem.nodeType == 1 and elem.nodeName == 'ID':
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'ID':
                 elem.childNodes[0].nodeValue = newval
 
     @property
     def LastReportTime(self):
         for elem in self.base_node.childNodes:
-            if elem.nodeType == 1 and elem.nodeName == 'LastReportTime':
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'LastReportTime':
                 try:
                     return datetime.strptime(elem.childNodes[0].nodeValue, date_format)
                 except ValueError as e:
@@ -331,7 +574,7 @@ class APIComputer(BESAPICoreElement):
     @LastReportTime.setter
     def LastReportTime(self, newval):
         for elem in self.base_node.childNodes:
-            if elem.nodeType == 1 and elem.nodeName == 'LastReportTime':
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'LastReportTime':
                 try:
                     elem.childNodes[0].nodeValue = datetime.strftime(newval, date_format)
                 except ValueError as e:
@@ -346,34 +589,34 @@ class APIGenericSite(BESAPICoreElement):
     @property
     def Name(self):
         for elem in self.base_node.childNodes:
-            if elem.nodeType == 1 and elem.nodeName == 'Name':
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'Name':
                 return elem.childNodes[0].nodeValue
     @Name.setter
     def Name(self, newvalue):
         for elem in self.base_node.childNodes:
-            if elem.nodeType == 1 and elem.nodeName == 'Name':
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'Name':
                 elem.childNodes[0].nodeValue = newvalue
 
     @property
     def DisplayName(self):
         for elem in self.base_node.childNodes:
-            if elem.nodeType == 1 and elem.nodeName == 'DisplayName':
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'DisplayName':
                 return elem.childNodes[0].nodeValue
     @DisplayName.setter
     def DisplayName(self, newvalue):
         for elem in self.base_node.childNodes:
-            if elem.nodeType == 1 and elem.nodeName == 'DisplayName':
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'DisplayName':
                 elem.childNodes[0].nodeValue = newvalue
 
     @property
     def GatherURL(self):
         for elem in self.base_node.childNodes:
-            if elem.nodeType == 1 and elem.nodeName == 'GatherURL':
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'GatherURL':
                 return elem.childNodes[0].nodeValue
     @GatherURL.setter
     def GatherURL(self, newvalue):
         for elem in self.base_node.childNodes:
-            if elem.nodeType == 1 and elem.nodeName == 'GatherURL':
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'GatherURL':
                 elem.childNodes[0].nodeValue = newvalue
 
 
@@ -393,23 +636,23 @@ class APIGenericContent(BESAPICoreElement):
     @property
     def Name(self):
         for elem in self.base_node.childNodes:
-            if elem.nodeType == 1 and elem.nodeName == 'Name':
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'Name':
                 return elem.childNodes[0].nodeValue
     @Name.setter
     def Name(self, newvalue):
         for elem in self.base_node.childNodes:
-            if elem.nodeType == 1 and elem.nodeName == 'Name':
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'Name':
                 elem.childNodes[0].nodeValue = newvalue
 
     @property
     def ID(self):
         for elem in self.base_node.childNodes:
-            if elem.nodeType == 1 and elem.nodeName == 'ID':
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'ID':
                 return elem.childNodes[0].nodeValue
     @ID.setter
     def ID(self, newvalue):
         for elem in self.base_node.childNodes:
-            if elem.nodeType == 1 and elem.nodeName == 'ID':
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'ID':
                 elem.childNodes[0].nodeValue = newvalue
 
     @property
@@ -542,7 +785,7 @@ class BESContainer(CoreContainer):
 
     def _parse_elements(self):
         for elem in self.base_node.childNodes:
-            if elem.nodeType == 1:
+            if elem.nodeType == Node.ELEMENT_NODE:
                 if elem.nodeName == 'ExternalSite':
                     self.elements.append(ExternalSite(elem))
                 elif elem.nodeName == 'ActionSite':
@@ -551,6 +794,10 @@ class BESContainer(CoreContainer):
                     self.elements.append(CustomSite(elem))
                 elif elem.nodeName == 'OperatorSite':
                     self.elements.append(OperatorSite(elem))
+                elif elem.nodeName == 'Fixlet':
+                    self.elements.append(Fixlet(elem))
+                elif elem.nodeName == 'Task':
+                    self.elements.append(Task(elem))
                 else:
                     self.elements.append(BESCoreElement(elem))
 
@@ -564,7 +811,7 @@ class BESAPIContainer(CoreContainer):
 
     def _parse_elements(self):
         for elem in self.base_node.childNodes:
-            if elem.nodeType == 1:
+            if elem.nodeType == Node.ELEMENT_NODE:
                 if elem.nodeName == 'Computer':
                     self.elements.append(APIComputer(elem))
                 elif elem.nodeName == 'ExternalSite':
