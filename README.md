@@ -1,0 +1,2 @@
+# README
+This library allows for executing queries to BigFix REST Api without much knowledge of xml schema constructions. At this moment the coverage of xml schema objects is scarce, but will be extended over time. For details, read source code. Hint: Start with Client class.
