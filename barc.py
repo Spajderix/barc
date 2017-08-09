@@ -506,6 +506,54 @@ class OperatorSite(Site):
         self._set_newvalue_for_elem('GatherURL', newvalue)
 
 
+class Property(BESCoreElement):
+    def __init__(self, *args, **kwargs):
+        try:
+            tmp = self._base_node_name
+        except AttributeError as e:
+            self._base_node_name = 'Property'
+        super(Property, self).__init__(*args, **kwargs)
+
+    @property
+    def Name(self):
+        return self.base_node.getAttribute('Name')
+    @Name.setter
+    def Name(self, newvalue):
+        if len(newvalue) > 255:
+            raise ValueError('Name can only be 255 characters long')
+        self.base_node.setAttribute('Name', newvalue)
+
+    @property
+    def EvaluationPeriod(self):
+        return self.base_node.getAttribute('EvaluationPeriod')
+    @EvaluationPeriod.setter
+    def EvaluationPeriod(self, newvalue):
+        if re.search('^P([0-9]+D)?(T([0-9]+H)?([0-9]+M)?([0-9]+(\.[0-9]{1,6})?S)?)?$', newvalue) is None:
+            raise ValueError('Incorrectly formatted delay duration')
+        self.base_node.setAttribute('EvaluationPeriod', newvalue)
+
+    @property
+    def KeepStatistics(self):
+        return self.base_node.getAttribute('KeepStatistics')
+    @KeepStatistics.setter
+    def KeepStatistics(self, newvalue):
+        if newvalue not in ('true', 'false'):
+            raise ValueError('It can only be true or false')
+        self.base_node.setAttribute('KeepStatistics', newvalue)
+
+    @property
+    def Relevance(self):
+        if len(self.base_node.childNodes) == 0 or len(self.base_node.childNodes) > 1:
+            return ''
+        else:
+            return self.base_node.childNodes[0].nodeValue
+    @Relevance.setter
+    def Relevance(self, newvalue):
+        while len(self.base_node.childNodes) > 0:
+            self.base_node.removeChild(self.base_node.childNodes[0])
+        t_node = self.base_node.ownerDocument.createTextNode(newvalue)
+        self.base_node.appendChild(t_node)
+
 
 
 #### BESAPI Elements ####
@@ -643,6 +691,42 @@ class APIOperatorSite(APIGenericSite):
     pass
 class APIActionSite(APIGenericSite):
     pass
+
+
+
+class APIProperty(BESAPICoreElement):
+    @property
+    def Name(self):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'Name':
+                return elem.childNodes[0].nodeValue
+    @Name.setter
+    def Name(self, newvalue):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'Name':
+                elem.childNodes[0].nodeValue = newvalue
+
+    @property
+    def ID(self):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeID == 'ID':
+                return elem.childNodes[0].nodeValue
+    @ID.setter
+    def ID(self, newvalue):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeID == 'ID':
+                elem.childNodes[0].nodeValue = newvalue
+
+    @property
+    def IsReserved(self):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeIsReserved == 'IsReserved':
+                return elem.childNodes[0].nodeValue
+    @IsReserved.setter
+    def IsReserved(self, newvalue):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeIsReserved == 'IsReserved':
+                elem.childNodes[0].nodeValue = newvalue
 
 
 
@@ -813,6 +897,8 @@ class BESContainer(CoreContainer):
                     self.elements.append(Fixlet(elem))
                 elif elem.nodeName == 'Task':
                     self.elements.append(Task(elem))
+                elif elem.nodeName == 'Property':
+                    self.elements.append(Property(elem))
                 else:
                     self.elements.append(BESCoreElement(elem))
 
@@ -845,6 +931,8 @@ class BESAPIContainer(CoreContainer):
                     self.elements.append(APIAnalysis(elem))
                 elif elem.nodeName == 'Baseline':
                     self.elements.append(APIBaseline(elem))
+                elif elem.nodeName == 'Property':
+                    self.elements.append(APIProperty(elem))
                 else:
                     self.elements.append(BESAPICoreElement(elem))
 
