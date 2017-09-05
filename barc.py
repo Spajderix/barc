@@ -444,7 +444,7 @@ class Site(BESCoreElement):
             raise ValueError('GlobalReadPermission can only be true or false')
         if not self._exists_child_elem('GlobalReadPermission'):
             self._create_child_elem('GlobalReadPermission')
-        self._set_newvalue_for_elem('GlobalReadPermission')
+        self._set_newvalue_for_elem('GlobalReadPermission', newvalue)
 
     @property
     def Subscription(self):
