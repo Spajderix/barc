@@ -931,6 +931,8 @@ class BESAPIContainer(CoreContainer):
                     self.elements.append(APIAnalysis(elem))
                 elif elem.nodeName == 'Baseline':
                     self.elements.append(APIBaseline(elem))
+                elif elem.nodeName == 'Action':
+                    self.elements.append(APIAction(elem))
                 elif elem.nodeName == 'Property':
                     self.elements.append(APIProperty(elem))
                 else:

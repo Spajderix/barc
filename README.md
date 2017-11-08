@@ -19,8 +19,8 @@ Client object has one method per each request defined. First argument to those m
 ```python
 from barc import Client
 
-c = Client('localhost', 443, 'temadmin', 'secretpassword')
-computer_list = c.get('https://localhost:443/api/computers')
+c = Client('localhost', 52311, 'temadmin', 'secretpassword')
+computer_list = c.get('https://localhost:52311/api/computers')
 ```
 
 Client is smart enough to build it's own resource urls, so the request may as well look like this:
@@ -73,7 +73,7 @@ Container objects behave a bit like lists. You can append elements to it, remove
 ```python
 from barc import Client
 
-c = Client('localhost', 443, 'temadmin', 'secretpassword')
+c = Client('localhost', 52311, 'temadmin', 'secretpassword')
 computers_payload = c.get('/computers')
 
 print computers_payload.base_node.toxml()
@@ -117,7 +117,7 @@ Elements can be appended to the container object to form a payload. This payload
 ```python
 from barc import Client, BESContainer, CustomSite
 
-c = Client('localhost', 443, 'temadmin', 'password')
+c = Client('localhost', 52311, 'temadmin', 'password')
 
 site = CustomSite()
 site.Name = 'TestSite1'
