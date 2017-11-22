@@ -471,6 +471,147 @@ class FixletDefaultAction(FixletAction):
         super(FixletDefaultAction, self).__init__(*args, **kwargs)
         self._field_order = ('Description', 'ActionScript', 'SuccessCriteria', 'SuccessCriteriaLocked', 'Settings', 'SettingsLocks')
 
+class ActionManager(object):
+    "This class will manage actions within elements like Fixlet or Task"
+    __slots__ = ('_core_element_o', '_default_action', '_actions')
+    def __init__(self, core_o):
+        if not isinstance(core_o, BESCoreElement):
+            raise ValueError('ActionManager will only handle objects based on BESCoreElement')
+        self._core_element_o = core_o # this is an element object for which we will handle actions, e.g. Fixlet or Task
+        self._default_action = None
+        self._actions = []
+
+        self._parse_actions()
+
+    def __len__(self):
+        return len(self._actions)
+
+    def __getitem__(self, k):
+        if type(k) is not int:
+            raise TypeError('Incorrect index type, should be int')
+        elif k < 0 or k >= len(self._actions):
+            raise IndexError('Index outside of list size')
+        return self._actions[k]
+
+    def __setitem__(self, k, v):
+        if not isinstance(v, FixletAction):
+            raise TypeError('Value is not a subclass of FixletAction')
+        elif type(k) is not int:
+            raise TypeError('Incorrect index type, should be int')
+        elif k < 0 or k >= len(self._actions):
+            raise IndexError('Index outside of list size')
+
+        for elem in self._core_element_o.base_node.childNodes:
+            if elem.isSameNode(v.base_node):
+                raise ValueError('This object is already added')
+
+        to_replace = self._actions.pop(k)
+        self._core_element_o.base_node.replaceChild(v.base_node, to_replace.base_node)
+        self._actions.insert(k, v)
+        v.ID = to_replace.ID
+        return True
+
+    def __delitem__(self, k):
+        if type(k) is not int:
+            raise TypeError('Incorrect index type, should be int')
+        elif k < 0 or k >= len(self._actions):
+            raise IndexError('Index outside of list size')
+        to_remove = self._actions.pop(k)
+        self._core_element_o.base_node.removeChild(to_remove.base_node)
+        return True
+
+    def _append_action_node(self, n):
+        if len(self._actions) > 0:
+            next_element_node = None # this will be next element node after last Action node
+            found_action = False
+            for elem in self._core_element_o.base_node.childNodes:
+                if elem.nodeType == Node.ELEMENT_NODE:
+                    if not found_action and elem.nodeName != 'Action':
+                        continue
+                    elif not found_action and elem.nodeName == 'Action':
+                        found_action = True
+                    elif found_action and elem.nodeName == 'Action':
+                        continue
+                    elif found_action and elem.nodeName != 'Action':
+                        next_element_node = elem
+                        break
+            if next_element_node is None:
+                self._core_element_o.base_node.appendChild(n)
+            else:
+                self._core_element_o.base_node.insertBefore(n, next_element_node)
+        else:
+            self._core_element_o._create_child_elem('Action')
+            # now find the action node, and replace it
+            to_replace = None
+            for elem in self._core_element_o.base_node.childNodes:
+                if elem.nodeType == Node.NODE_ELEMENT and elem.nodeName == 'Action':
+                    to_replace = elem
+                    break
+            self._core_element_o.base_node.replaceChild(n, to_replace)
+
+    def append(self, v):
+        if not isinstance(v, FixletAction):
+            raise TypeError('Value is not a subclass of FixletAction')
+
+        for elem in self._core_element_o.base_node.childNodes:
+            if elem.isSameNode(v.base_node):
+                raise ValueError('This object is already added')
+
+        self._enumerate_action(v)
+        self._append_action_node(v.base_node)
+        self._actions.append(v)
+
+    def pop(self, k):
+        if type(k) is not int:
+            raise TypeError('Incorrect index type, should be int')
+        elif k < 0 or k >= len(self._actions):
+            raise IndexError('Index outside of list size')
+
+        to_pop = self._actions.pop(k)
+        self._core_element_o.base_node.removeChild(to_pop.base_node)
+        return to_pop
+
+    def _parse_actions(self):
+        for elem in self._core_element_o.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE:
+                if elem.nodeName == 'DefaultAction':
+                    self._default_action = FixletDefaultAction(elem)
+                elif elem.nodeName == 'Action':
+                    self._actions.append(FixletAction(elem))
+
+    def _enumerate_action(self, a):
+        current_max = 0
+        try:
+            if self._default_action is not None and int(self._default_action.ID) > current_max:
+                current_max = int(self._default_action.ID)
+        except ValueError as e:
+            pass
+        for elem in self._actions:
+            try:
+                if int(elem.ID) > current_max:
+                    current_max = int(elem.ID)
+            except ValueError as e:
+                pass
+        a.ID = '{0}'.format(current_max + 1)
+
+    @property
+    def DefaultAction(self):
+        return self._default_action
+    @DefaultAction.setter
+    def DefaultAction(self, newvalue):
+        if not isinstance(newvalue, FixletDefaultAction):
+            raise ValueError('Incorrect type. Should be instance of FixletDefaultAction class')
+        self._enumerate_action(newvalue)
+        self._default_action = newvalue
+        if not self._core_element_o._exists_child_elem('DefaultAction'):
+            self._core_element_o._create_child_elem('DefaultAction')
+        old_da_node = None
+        for elem in self._core_element_o.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'DefaultAction':
+                old_da_node = elem
+                break
+        self._core_element_o.base_node.replaceChild(self._default_action.base_node, old_da_node)
+
 
 
 
@@ -479,12 +620,14 @@ class Fixlet(BaseFixlet):
         self._base_node_name = 'Fixlet'
         super(Fixlet, self).__init__(*args, **kwargs)
         self._field_order = self._field_order + ('DefaultAction', 'Action')
+        self.Actions = ActionManager(self)
 
 class Task(BaseFixlet):
     def __init__(self, *args, **kwargs):
         self._base_node_name = 'Task'
         super(Task, self).__init__(*args, **kwargs)
         self._field_order = self._field_order + ('DefaultAction', 'Action')
+        self.Actions = ActionManager(self)
 
 class SiteSubscription(BESCoreElement):
     def __init__(self, *args, **kwargs):
