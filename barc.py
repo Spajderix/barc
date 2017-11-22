@@ -308,14 +308,14 @@ class BaseFixlet(BESCoreElement):
         for elem in newvalue:
             if type(elem) is not MIMEField:
                 raise TypeError('List should contain MIMEField objects')
-        # first clear all relevance elements
+        # first clear all MIMEField elements
         to_remove = []
         for elem in self.base_node.childNodes:
             if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'MIMEField':
                 to_remove.append(elem)
         for elem in to_remove:
             self.base_node.removeChild(elem)
-        # now add all new relevance elements
+        # now add all new MIMEField elements
         for x in xrange(len(newvalue)):
             self._create_child_elem('MIMEField')
         # and add all proper values
@@ -348,6 +348,128 @@ class BaseFixlet(BESCoreElement):
         if not self._exists_child_elem('Delay'):
             self._create_child_elem('Delay')
         self._set_newvalue_for_elem('Delay', newvalue)
+
+
+class FixletAction(BESCoreElement):
+    def __init__(self, *args, **kwargs):
+        try:
+            self._base_node_name
+        except AttributeError as e:
+            self._base_node_name = 'Action'
+        super(FixletAction, self).__init__(*args, **kwargs)
+        self._field_order = ('Description', 'ActionScript', 'SuccessCriteria', 'SuccessCriteriaLocked', 'Settings', 'SettingsLocks')
+    def _create_empty_element(self, *args, **kwargs):
+        super(FixletAction, self)._create_empty_element(*args, **kwargs)
+        actionscript_node = self.base_node.ownerDocument.createElement('ActionScript')
+        actionscript_node.appendChild(self.base_node.ownerDocument.createTextNode(''))
+        actionscript_node.setAttribute('MIMEType', 'application/x-Fixlet-Windows-Shell')
+        self.base_node.appendChild(actionscript_node)
+        self.base_node.setAttribute('ID', '')
+
+    @property
+    def ID(self):
+        return self.base_node.getAttribute('ID')
+    @ID.setter
+    def ID(self, newvalue):
+        self.base_node.setAttribute('ID', newvalue)
+
+    @property
+    def Description(self):
+        if not self._exists_child_elem('Description'):
+            return ''
+        else:
+            dnode = None
+            output = ''
+            for elem in self.base_node.childNodes:
+                if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'Description':
+                    dnode = elem
+                    break
+            #get prelink content
+            for elem in dnode.childNodes:
+                if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'PreLink':
+                    for prelink_elem in elem.childNodes:
+                        if prelink_elem.nodeType == Node.TEXT_NODE or prelink_elem.nodeType == Node.CDATA_SECTION_NODE:
+                            output = '{0}{1}'.format(output, prelink_elem.nodeValue)
+                    break
+            #get link content
+            output = '{0}[LINK]'.format(output)
+            for elem in dnode.childNodes:
+                if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'Link':
+                    for prelink_elem in elem.childNodes:
+                        if prelink_elem.nodeType == Node.TEXT_NODE or prelink_elem.nodeType == Node.CDATA_SECTION_NODE:
+                            output = '{0}{1}'.format(output, prelink_elem.nodeValue)
+                    break
+            output = '{0}[/LINK]'.format(output)
+            #get postlink content
+            for elem in dnode.childNodes:
+                if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'PostLink':
+                    for prelink_elem in elem.childNodes:
+                        if prelink_elem.nodeType == Node.TEXT_NODE or prelink_elem.nodeType == Node.CDATA_SECTION_NODE:
+                            output = '{0}{1}'.format(output, prelink_elem.nodeValue)
+                    break
+            return output
+    @Description.setter
+    def Description(self, newvalue):
+        if not self._exists_child_elem('Description'):
+            self._create_child_elem('Description')
+        #find description node and clear it of it's children
+        dnode = None
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'Description':
+                dnode = elem
+                break
+        while len(dnode.childNodes) > 0:
+            dnode.removeChild(dnode.childNodes[0])
+        #parse out prelink,link and postlink sections based on [LINK]...[/LINK] tags
+        m = re.search(r'^(.+?)\[LINK\](.+?)\[\/LINK\](.+?)$', newvalue)
+        if m is None:
+            raise ValueError('Incorrectly formatted description. Need to include [LINK]..[/LINK] tags to specify clickable part of the action description')
+        else:
+            prelink = self.base_node.ownerDocument.createElement('PreLink')
+            prelink.appendChild(self.base_node.ownerDocument.createTextNode(m.group(1)))
+            link = self.base_node.ownerDocument.createElement('Link')
+            link.appendChild(self.base_node.ownerDocument.createTextNode(m.group(2)))
+            postlink = self.base_node.ownerDocument.createElement('PostLink')
+            postlink.appendChild(self.base_node.ownerDocument.createTextNode(m.group(3)))
+            dnode.appendChild(prelink)
+            dnode.appendChild(link)
+            dnode.appendChild(postlink)
+
+    @property
+    def ActionScript(self):
+        return self._value_for_elem('ActionScript')
+    @ActionScript.setter
+    def ActionScript(self, newvalue):
+        if not self._exists_child_elem('ActionScript'):
+            self._create_child_elem('ActionScript')
+        self._set_newvalue_for_elem('ActionScript', newvalue)
+
+    @property
+    def MIMEType(self):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'ActionScript':
+                return elem.getAttribute('MIMEType')
+    @MIMEType.setter
+    def MIMEType(self, newvalue):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'ActionScript':
+                elem.setAttribute('MIMEType', newvalue)
+                break
+    @property
+    def SuccessCriteriaLocked(self):
+        return self._value_for_elem('SuccessCriteriaLocked')
+    @SuccessCriteriaLocked.setter
+    def SuccessCriteriaLocked(self, newvalue):
+        if newvalue not in ('true', 'false'):
+            raise ValueError('SuccessCriteriaLocked can only be true or false')
+        if not self._exists_child_elem('SuccessCriteriaLocked'):
+            self._create_child_elem('SuccessCriteriaLocked')
+        self._set_newvalue_for_elem('SuccessCriteriaLocked', newvalue)
+class FixletDefaultAction(FixletAction):
+    def __init__(self, *args, **kwargs):
+        self._base_node_name = 'DefaultAction'
+        super(FixletDefaultAction, self).__init__(*args, **kwargs)
+        self._field_order = ('Description', 'ActionScript', 'SuccessCriteria', 'SuccessCriteriaLocked', 'Settings', 'SettingsLocks')
 
 
 
@@ -1002,9 +1124,9 @@ class Client(object):
             contents = o.read()
             if raw_response:
                 return contents
-            if re.search(r'\<BESAPI\s+', contents, re.MULTILINE) != None:
+            if re.search(r'\<BESAPI\s+', contents[:150], re.MULTILINE) != None:
                 return BESAPIContainer(contents)
-            elif re.search(r'\<BES\s+', contents, re.MULTILINE) != None:
+            elif re.search(r'\<BES\s+', contents[:150], re.MULTILINE) != None:
                 return BESContainer(contents)
             else:
                 raise ValueError('Not BESAPI nor BES xml element found')
@@ -1023,9 +1145,9 @@ class Client(object):
             contents = o.read()
             if raw_response:
                 return contents
-            if re.search(r'\<BESAPI\s+', contents, re.MULTILINE) != None:
+            if re.search(r'\<BESAPI\s+', contents[:150], re.MULTILINE) != None:
                 return BESAPIContainer(contents)
-            elif re.search(r'\<BES\s+', contents, re.MULTILINE) != None:
+            elif re.search(r'\<BES\s+', contents[:150], re.MULTILINE) != None:
                 return BESContainer(contents)
             else:
                 raise ValueError('Not BESAPI nor BES xml element found')
@@ -1045,9 +1167,9 @@ class Client(object):
             contents = o.read()
             if raw_response:
                 return contents
-            if re.search(r'\<BESAPI\s+', contents, re.MULTILINE) != None:
+            if re.search(r'\<BESAPI\s+', contents[:150], re.MULTILINE) != None:
                 return BESAPIContainer(contents)
-            elif re.search(r'\<BES\s+', contents, re.MULTILINE) != None:
+            elif re.search(r'\<BES\s+', contents[:150], re.MULTILINE) != None:
                 return BESContainer(contents)
             else:
                 raise ValueError('Not BESAPI nor BES xml element found')
@@ -1064,9 +1186,9 @@ class Client(object):
             if raw_response:
                 return contents
             if re.search(r'\<BESAPI\s+', contents, re.MULTILINE) != None:
-                return BESAPIContainer(contents)
+                return BESAPIContainer(contents[:150])
             elif re.search(r'\<BES\s+', contents, re.MULTILINE) != None:
-                return BESContainer(contents)
+                return BESContainer(contents[:150])
             elif contents == 'ok':
                 return True
             else:
