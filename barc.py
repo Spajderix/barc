@@ -654,6 +654,141 @@ class ActionSettings(BESCoreElement):
             if n is not None:
                 self.base_node.removeChild(n)
 
+    @property
+    def HasDayOfWeekConstraint(self):
+        if not self._exists_child_elem('HasDayOfWeekConstraint'):
+            return None
+        return self._str2bool(self._value_for_elem('HasDayOfWeekConstraint'))
+    @HasDayOfWeekConstraint.setter
+    def HasDayOfWeekConstraint(self, newvalue):
+        if newvalue not in (True, False):
+            raise ValueError('HasDayOfWeekConstraint can only be true or false')
+        if not self._exists_child_elem('HasDayOfWeekConstraint'):
+            self._create_child_elem('HasDayOfWeekConstraint')
+        self._set_newvalue_for_elem('HasDayOfWeekConstraint', self._bool2str(newvalue))
+        # if it is false, then DayOfWeekConstraint should be dropped
+        if not newvalue and self._exists_child_elem('DayOfWeekConstraint'):
+            dwc_node = self._get_child_elem('DayOfWeekConstraint')
+            self.base_node.removeChild(dwc_node)
+
+    @property
+    def DayOfWeekConstraint(self):
+        if not self._exists_child_elem('DayOfWeekConstraint'):
+            return None
+        out = {'Sun': False, 'Mon': False, 'Tue': False, 'Wed': False, 'Thu': False, 'Fri': False, 'Sat': False}
+        dwc_node = self._get_child_elem('DayOfWeekConstraint')
+        for elem in dwc_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName in out.keys():
+                try:
+                    out[ele.nodeName] = self._str2bool(elem.childNodes[0].nodeValue)
+                except Exception as e:
+                    pass # we just want to skip if we're unable to extract
+        return out
+    @DayOfWeekConstraint.setter
+    def DayOfWeekConstraint(self, newvalue):
+        if not isinstance(newvalue, dict):
+            raise ValueError('DayOfWeekContraint only accepts dictionary')
+        if not self._exists_child_elem('DayOfWeekConstraint'):
+            self._create_child_elem('DayOfWeekConstraint')
+        dwc_node = self._get_child_elem('DayOfWeekConstraint')
+        # remove all children before proceeding
+        while len(dwc_node.childNodes) > 0:
+            dwc_node.removeChild(dwc_node.childNodes[0])
+        for k in ('Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'):
+            sub_n = self.base_node.ownerDocument.createElement(k)
+            sub_n.appendChild(self.base_node.ownerDocument.createTextNode(self._bool2str(newvalue.get(k, False))))
+            dwc_node.appendChild(sub_n)
+        # since this is set HasDayOfWeelConstraint should be true
+        if not self.HasDayOfWeekConstraint:
+            self.HasDayOfWeekConstraint = True
+
+    @property
+    def UseUTCTime(self):
+        if not self._exists_child_elem('UseUTCTime'):
+            return None
+        return self._str2bool(self._value_for_elem('UseUTCTime'))
+    @UseUTCTime.setter
+    def UseUTCTime(self, newvalue):
+        if newvalue not in (True, False):
+            raise ValueError('UseUTCTime only accept true or false')
+        if not self._exists_child_elem('UseUTCTime'):
+            self._create_child_elem('UseUTCTime')
+        self._set_newvalue_for_elem('UseUTCTime', self._bool2str(newvalue))
+
+    @property
+    def PreActionCacheDownload(self):
+        if not self._exists_child_elem('PreActionCacheDownload'):
+            return None
+        return self._str2bool(self._value_for_elem('PreActionCacheDownload'))
+    @PreActionCacheDownload.setter
+    def PreActionCacheDownload(self, newvalue):
+        if newvalue not in (True, False):
+            raise ValueError('PreActionCacheDownload only accept true or false')
+        if not self._exists_child_elem('PreActionCacheDownload'):
+            self._create_child_elem('PreActionCacheDownload')
+        self._set_newvalue_for_elem('PreActionCacheDownload', self._bool2str(newvalue))
+
+    @property
+    def Reapply(self):
+        if not self._exists_child_elem('Reapply'):
+            return None
+        return self._str2bool(self._value_for_elem('Reapply'))
+    @Reapply.setter
+    def Reapply(self, newvalue):
+        if newvalue not in (True, False):
+            raise ValueError('Reapply only accept true or false')
+        if not self._exists_child_elem('Reapply'):
+            self._create_child_elem('Reapply')
+        self._set_newvalue_for_elem('Reapply', self._bool2str(newvalue))
+
+    @property
+    def HasReapplyLimit(self):
+        if not self._exists_child_elem('HasReapplyLimit'):
+            return None
+        return self._str2bool(self._value_for_elem('HasReapplyLimit'))
+    @HasReapplyLimit.setter
+    def HasReapplyLimit(self, newvalue):
+        if newvalue not in (True, False):
+            raise ValueError('HasReapplyLimit only accept true or false')
+        if not self._exists_child_elem('HasReapplyLimit'):
+            self._create_child_elem('HasReapplyLimit')
+        self._set_newvalue_for_elem('HasReapplyLimit', self._bool2str(newvalue))
+
+    @property
+    def ReapplyLimit(self):
+        return self._value_for_elem('ReapplyLimit')
+    @ReapplyLimit.setter
+    def ReapplyLimit(self, newvalue):
+        if not isinstance(newvalue, int) or newvalue < 0:
+            raise ValueError('ReapplyLimit can only be non-negative integer')
+        if not self._exists_child_elem('ReapplyLimit'):
+            self._create_child_elem('ReapplyLimit')
+        self._set_newvalue_for_elem('ReapplyLimit', newvalue)
+
+    @property
+    def HasReapplyInterval(self):
+        if not self._exists_child_elem('HasReapplyInterval'):
+            return None
+        return self._str2bool(self._value_for_elem('HasReapplyInterval'))
+    @HasReapplyInterval.setter
+    def HasReapplyInterval(self, newvalue):
+        if newvalue not in (True, False):
+            raise ValueError('HasReapplyInterval only accept true or false')
+        if not self._exists_child_elem('HasReapplyInterval'):
+            self._create_child_elem('HasReapplyInterval')
+        self._set_newvalue_for_elem('HasReapplyInterval', self._bool2str(newvalue))
+
+    @property
+    def ReapplyInterval(self):
+        return self._value_for_elem('ReapplyInterval')
+    @ReapplyInterval.setter
+    def ReapplyInterval(self, newvalue):
+        if newvalue not in ("PT15M", "PT30M", "PT1H", "PT2H", "PT4H", "PT6H", "PT8H", "PT12H", "P1D", "P2D", "P3D", "P5D", "P7D", "P15D", "P30D"):
+            raise ValueError('ReapplyInterval can only be one of the following: PT15M, PT30M, PT1H, PT2H, PT4H, PT6H, PT8H, PT12H, P1D, P2D, P3D, P5D, P7D, P15D, P30D')
+        if not self._exists_child_elem('ReapplyInterval'):
+            self._create_child_elem('ReapplyInterval')
+        self._set_newvalue_for_elem('ReapplyInterval', newvalue)
+
 
 
 class FixletAction(BESCoreElement):
