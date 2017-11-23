@@ -77,6 +77,12 @@ class BESCoreElement(object):
             else:
                 self.base_node.appendChild(new_node)
 
+    def _get_child_elem(self, ename):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == ename:
+                return elem
+        return None
+
     def _value_for_elem(self, ename):
         for elem in self.base_node.childNodes:
             if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == ename:
@@ -96,6 +102,19 @@ class BESCoreElement(object):
                 tnode = self.base_node.ownerDocument.createTextNode(newvalue)
                 # now append the value to doctree
                 elem.childNodes.append(tnode)
+
+    def _bool2str(self, v):
+        if v not in (True, False):
+            raise ValueError('Boolean types only')
+        if v:
+            return 'true'
+        return 'false'
+    def _str2bool(self, v):
+        if v not in ('true', 'false'):
+            raise ValueError('Boolean string representations only')
+        if v == 'true':
+            return True
+        return False
 
 class BESAPICoreElement(object):
     __slots__ = ('base_node',)
@@ -350,7 +369,147 @@ class BaseFixlet(BESCoreElement):
         self._set_newvalue_for_elem('Delay', newvalue)
 
 
+class ActionSettings(BESCoreElement):
+    def __init__(self, *args, **kwargs):
+        try:
+            self._base_node_name
+        except AttributeError as e:
+            self._base_node_name = 'Settings'
+        super(ActionSettings, self).__init__(*args, **kwargs)
+        self._field_order = ('ActionUITitle', 'PreActionShowUI', 'PreAction', 'HasRunningMessage', 'RunningMessage', 'HasTimeRange', 'TimeRange', 'HasStartTime', 'StartDateTimeOffset', 'StartDateTimeLocalOffset', 'StartDateTime', 'StartDateTimeLocal', 'HasEndTime', 'EndDateTimeOffset', 'EndDateTimeLocalOffset', 'EndDateTime', 'EndDateTimeLocal', 'HasDayOfWeekConstraint', 'DayOfWeekConstraint', 'UseUTCTime', 'ActiveUserRequirement', 'ActiveUserType', 'UIGroupConstraints', 'HasWhose', 'Whose', 'PreActionCacheDownload', 'Reapply', 'HasReapplyLimit', 'ReapplyLimit', 'HasReapplyInterval', 'ReapplyInterval', 'HasRetry', 'RetryCount', 'RetryWait', 'HasTemporalDistribution', 'TemporalDistribution', 'ContinueOnErrors', 'PostActionBehavior', 'IsOffer', 'AnnounceOffer', 'OfferCategory', 'OfferDescriptionHTML')
+
+    @property
+    def ActionUITitle(self):
+        return self._value_for_elem('ActionUITitle')
+    @ActionUITitle.setter
+    def ActionUITitle(self, newvalue):
+        if not self._exists_child_elem('ActionUITitle'):
+            self._create_child_elem('ActionUITitle')
+        self._set_newvalue_for_elem('ActionUITitle', newvalue)
+
+    @property
+    def PreActionShowUI(self):
+        if self._value_for_elem('PreActionShowUI') is None:
+            return None
+        return self._str2bool(self._value_for_elem('PreActionShowUI'))
+    @PreActionShowUI.setter
+    def PreActionShowUI(self, newvalue):
+        if newvalue not in (True, False):
+            raise ValueError('PreActionShowUI can only be true or false')
+        if not self._exists_child_elem('PreActionShowUI'):
+            self._create_child_elem('PreActionShowUI')
+        self._set_newvalue_for_elem('PreActionShowUI', self._bool2str(newvalue))
+
+    @property
+    def HasRunningMessage(self):
+        if self._value_for_elem('HasRunningMessage') is None:
+            return None
+        return self._str2bool(self._value_for_elem('HasRunningMessage'))
+    @HasRunningMessage.setter
+    def HasRunningMessage(self, newvalue):
+        if newvalue not in (True, False):
+            raise ValueError('HasRunningMessage can only be true or false')
+        # if it is set to false, then we should remove RunningMessage elem
+        if not newvalue and self._exists_child_elem('RunningMessage'):
+            rm_node = self._get_child_elem('RunningMessage')
+            self.base_node.removeChild(rm_node)
+        if not self._exists_child_elem('HasRunningMessage'):
+            self._create_child_elem('HasRunningMessage')
+        self._set_newvalue_for_elem('HasRunningMessage', self._bool2str(newvalue))
+
+    @property
+    def RunningMessage(self):
+        if not self._exists_child_elem('RunningMessage'):
+            return None
+        rm_node = self._get_child_elem('RunningMessage')
+        rm_title = ''
+        rm_text = ''
+        for elem in rm_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE:
+                try:
+                    if elem.nodeName == 'Title':
+                        rm_title = elem.childNodes[0].nodeValue
+                    elif elem.nodeName == 'Text':
+                        rm_text = elem.childNodes[0].nodeValue
+                except IndexError as e:
+                    pass # we simply ignore it and leave the string empty
+        return (rm_title, rm_text)
+    @RunningMessage.setter
+    def RunningMessage(self, newvalue):
+        if not isinstance(newvalue, (list, tuple)):
+            raise ValueError('Acceptable value is either list or tuple with 2 elements inside')
+        if len(newvalue) != 2:
+            raise ValueError('Acceptable value is either list or tuple with 2 elements inside')
+        if not self._exists_child_elem('RunningMessage'):
+            self._create_child_elem('RunningMessage')
+        rm_node = self._get_child_elem('RunningMessage')
+        # empty the node before proceeding
+        while len(rm_node.childNodes) > 0:
+            rm_node.removeChild(rm_node.childNodes[0])
+        rm_title = self.base_node.ownerDocument.createElement('Title')
+        rm_title.appendChild(self.base_node.ownerDocument.createTextNode(newvalue[0]))
+        rm_text = self.base_node.ownerDocument.createElement('Text')
+        rm_text.appendChild(self.base_node.ownerDocument.createTextNode(newvalue[1]))
+        rm_node.appendChild(rm_title)
+        rm_node.appendChild(rm_text)
+        if not self.HasRunningMessage:
+            self.HasRunningMessage = True
+
+    @property
+    def HasStartTime(self):
+        if self._value_for_elem('HasStartTime') is None:
+            return None
+        return self._str2bool(self._value_for_elem('HasStartTime'))
+    @HasStartTime.setter
+    def HasStartTime(self, newvalue):
+        if newvalue not in (True, False):
+            raise ValueError('HasStartTime can only be true or false')
+        if not self._exists_child_elem('HasStartTime'):
+            self._create_child_elem('HasStartTime')
+        self._set_newvalue_for_elem('HasStartTime', self._bool2str(newvalue))
+        # if it is false, then we should drop all StartDate... elements
+        if not newvalue:
+            n = self._get_child_elem('StartDateTimeOffset')
+            if n is not None:
+                self.base_node.removeChild(n)
+            n = self._get_child_elem('StartDateTimeLocalOffset')
+            if n is not None:
+                self.base_node.removeChild(n)
+            n = self._get_child_elem('StartDateTime')
+            if n is not None:
+                self.base_node.removeChild(n)
+            n = self._get_child_elem('StartDateTimeLocal')
+            if n is not None:
+                self.base_node.removeChild(n)
+
+    @property
+    def StartDateTimeOffset(self):
+        return self._value_for_elem('StartDateTimeOffset')
+    @StartDateTimeOffset.setter
+    def StartDateTimeOffset(self, newvalue):
+        if re.search('^\-?P([0-9]+D)?(T([0-9]+H)?([0-9]+M)?([0-9]+(\.[0-9]{1,6})?S)?)?$', newvalue) is None:
+            raise ValueError('Incorrectly formatted offset.')
+        if not self._exists_child_elem('StartDateTimeOffset'):
+            self._create_child_elem('StartDateTimeOffset')
+        self._set_newvalue_for_elem('StartDateTimeOffset', newvalue)
+        if not self.HasStartTime:
+            self.HasStartTime = True
+        # if this one is set, the other 3 need to go
+        n = self._get_child_elem('StartDateTimeLocalOffset')
+        if n is not None:
+            self.base_node.removeChild(n)
+        n = self._get_child_elem('StartDateTime')
+        if n is not None:
+            self.base_node.removeChild(n)
+        n = self._get_child_elem('StartDateTimeLocal')
+        if n is not None:
+            self.base_node.removeChild(n)
+
+
+
 class FixletAction(BESCoreElement):
+    __slots__ = ('_settings_o', )
+
     def __init__(self, *args, **kwargs):
         try:
             self._base_node_name
@@ -358,6 +517,7 @@ class FixletAction(BESCoreElement):
             self._base_node_name = 'Action'
         super(FixletAction, self).__init__(*args, **kwargs)
         self._field_order = ('Description', 'ActionScript', 'SuccessCriteria', 'SuccessCriteriaLocked', 'Settings', 'SettingsLocks')
+        self._settings_o = None
     def _create_empty_element(self, *args, **kwargs):
         super(FixletAction, self)._create_empty_element(*args, **kwargs)
         actionscript_node = self.base_node.ownerDocument.createElement('ActionScript')
@@ -455,6 +615,31 @@ class FixletAction(BESCoreElement):
             if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'ActionScript':
                 elem.setAttribute('MIMEType', newvalue)
                 break
+
+    @property
+    def SuccessCriteria(self):
+        if not self._exists_child_elem('SuccessCriteria'):
+            return None
+        sc_node = self._get_child_elem('SuccessCriteria')
+        if sc_node.getAttribute('Option') in ('RunToCompletion', 'OriginalRelevance'):
+            return sc_node.getAttribute('Option')
+        else:
+            return self._value_for_elem('SuccessCriteria')
+    @SuccessCriteria.setter
+    def SuccessCriteria(self, newvalue):
+        if not self._exists_child_elem('SuccessCriteria'):
+            self._create_child_elem('SuccessCriteria')
+        # clear success criteria of all it's subnodes
+        sc_node = self._get_child_elem('SuccessCriteria')
+        while len(sc_node.childNodes) > 0:
+            sc_node.removeChild(sc_node.childNodes[0])
+
+        if newvalue in ('RunToCompletion', 'OriginalRelevance'):
+            sc_node.setAttribute('Option', newvalue)
+        else:
+            sc_node.setAttribute('Option', 'CustomRelevance')
+            sc_node.appendChild(self.base_node.ownerDocument.createTextNode(newvalue))
+
     @property
     def SuccessCriteriaLocked(self):
         return self._value_for_elem('SuccessCriteriaLocked')
@@ -465,6 +650,15 @@ class FixletAction(BESCoreElement):
         if not self._exists_child_elem('SuccessCriteriaLocked'):
             self._create_child_elem('SuccessCriteriaLocked')
         self._set_newvalue_for_elem('SuccessCriteriaLocked', newvalue)
+
+    @property
+    def Settings(self):
+        if self._settings_o is not None:
+            return self._settings_o
+        if not self._exists_child_elem('Settings'):
+            self._create_child_elem('Settings')
+        self._settings_o = ActionSettings(self._get_child_elem('Settings'))
+        return self._settings_o
 class FixletDefaultAction(FixletAction):
     def __init__(self, *args, **kwargs):
         self._base_node_name = 'DefaultAction'
@@ -1224,7 +1418,7 @@ class Client(object):
     @verify_cert.setter
     def verify_cert(self, val):
         if val not in (0,1,True,False):
-            raise ValueError('Not a bolean value')
+            raise ValueError('Not a boolean value')
         self._verify_cert = val
         if self._verify_cert:
             self._enable_certverify()
