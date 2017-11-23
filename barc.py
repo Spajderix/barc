@@ -791,14 +791,16 @@ class FixletAction(BESCoreElement):
 
     @property
     def SuccessCriteriaLocked(self):
-        return self._value_for_elem('SuccessCriteriaLocked')
+        if self._value_for_elem('SuccessCriteriaLocked') is None:
+            return None
+        return self._str2bool(self._value_for_elem('SuccessCriteriaLocked'))
     @SuccessCriteriaLocked.setter
     def SuccessCriteriaLocked(self, newvalue):
-        if newvalue not in ('true', 'false'):
+        if newvalue not in (True, False):
             raise ValueError('SuccessCriteriaLocked can only be true or false')
         if not self._exists_child_elem('SuccessCriteriaLocked'):
             self._create_child_elem('SuccessCriteriaLocked')
-        self._set_newvalue_for_elem('SuccessCriteriaLocked', newvalue)
+        self._set_newvalue_for_elem('SuccessCriteriaLocked', self._bool2str(newvalue))
 
     @property
     def Settings(self):
@@ -1045,14 +1047,16 @@ class Site(BESCoreElement):
 
     @property
     def GlobalReadPermission(self):
-        return self._value_for_elem('GlobalReadPermission')
+        if self._value_for_elem('GlobalReadPermission') is None:
+            return None
+        return self._str2bool(self._value_for_elem('GlobalReadPermission'))
     @GlobalReadPermission.setter
     def GlobalReadPermission(self, newvalue):
-        if newvalue not in ('true', 'false'):
+        if newvalue not in (True, False):
             raise ValueError('GlobalReadPermission can only be true or false')
         if not self._exists_child_elem('GlobalReadPermission'):
             self._create_child_elem('GlobalReadPermission')
-        self._set_newvalue_for_elem('GlobalReadPermission', newvalue)
+        self._set_newvalue_for_elem('GlobalReadPermission', self._bool2str(newvalue))
 
     @property
     def Subscription(self):
@@ -1142,12 +1146,14 @@ class Property(BESCoreElement):
 
     @property
     def KeepStatistics(self):
-        return self.base_node.getAttribute('KeepStatistics')
+        if self.base_node.getAttribute('KeepStatistics') is None:
+            return None
+        return self._str2bool(self.base_node.getAttribute('KeepStatistics'))
     @KeepStatistics.setter
     def KeepStatistics(self, newvalue):
-        if newvalue not in ('true', 'false'):
+        if newvalue not in (True, False):
             raise ValueError('It can only be true or false')
-        self.base_node.setAttribute('KeepStatistics', newvalue)
+        self.base_node.setAttribute('KeepStatistics', self._bool2str(newvalue))
 
     @property
     def Relevance(self):
