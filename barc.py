@@ -25,6 +25,7 @@ import re
 
 date_format = r'%a, %d %b %Y %H:%M:%S %z'
 date_format_notz = r'%a, %d %b %Y %H:%M:%S'
+simple_datetime_format = r'%Y-%m-%d %H:%M:%S'
 
 
 class BESCoreElement(object):
@@ -495,15 +496,163 @@ class ActionSettings(BESCoreElement):
         if not self.HasStartTime:
             self.HasStartTime = True
         # if this one is set, the other 3 need to go
-        n = self._get_child_elem('StartDateTimeLocalOffset')
-        if n is not None:
-            self.base_node.removeChild(n)
-        n = self._get_child_elem('StartDateTime')
-        if n is not None:
-            self.base_node.removeChild(n)
-        n = self._get_child_elem('StartDateTimeLocal')
-        if n is not None:
-            self.base_node.removeChild(n)
+        for ename in ('StartDateTimeLocalOffset', 'StartDateTime', 'StartDateTimeLocal'):
+            n = self._get_child_elem(ename)
+            if n is not None:
+                self.base_node.removeChild(n)
+
+    @property
+    def StartDateTimeLocalOffset(self):
+        return self._value_for_elem('StartDateTimeLocalOffset')
+    @StartDateTimeLocalOffset.setter
+    def StartDateTimeLocalOffset(self, newvalue):
+        if re.search('^\-?P([0-9]+D)?(T([0-9]+H)?([0-9]+M)?([0-9]+(\.[0-9]{1,6})?S)?)?$', newvalue) is None:
+            raise ValueError('Incorrectly formatted offset.')
+        if not self._exists_child_elem('StartDateTimeLocalOffset'):
+            self._create_child_elem('StartDateTimeLocalOffset')
+        self._set_newvalue_for_elem('StartDateTimeLocalOffset', newvalue)
+        if not self.HasStartTime:
+            self.HasStartTime = True
+        # if this one is set, the other 3 need to go
+        for ename in ('StartDateTimeOffset', 'StartDateTime', 'StartDateTimeLocal'):
+            n = self._get_child_elem(ename)
+            if n is not None:
+                self.base_node.removeChild(n)
+
+    @property
+    def StartDateTime(self):
+        if not self._exists_child_elem('StartDateTime'):
+            return None
+        return datetime.strptime(self._value_for_elem('StartDateTime'), simple_datetime_format)
+    @StartDateTime.setter
+    def StartDateTime(self, newvalue):
+        if not isinstance(newvalue, datetime):
+            raise ValueError('Only accepts datetime objects')
+        if not self._exists_child_elem('StartDateTime'):
+            self._create_child_elem('StartDateTime')
+        self._set_newvalue_for_elem('StartDateTime', newvalue.strftime(simple_datetime_format))
+        # if this one is set, the other 3 need to go
+        for ename in ('StartDateTimeOffset', 'StartDateTimeLocalOffset', 'StartDateTimeLocal'):
+            n = self._get_child_elem(ename)
+            if n is not None:
+                self.base_node.removeChild(n)
+
+    @property
+    def StartDateTimeLocal(self):
+        if not self._exists_child_elem('StartDateTimeLocal'):
+            return None
+        return datetime.strptime(self._value_for_elem('StartDateTimeLocal'), simple_datetime_format)
+    @StartDateTimeLocal.setter
+    def StartDateTimeLocal(self, newvalue):
+        if not isinstance(newvalue, datetime):
+            raise ValueError('Only accepts datetime objects')
+        if not self._exists_child_elem('StartDateTimeLocal'):
+            self._create_child_elem('StartDateTimeLocal')
+        self._set_newvalue_for_elem('StartDateTimeLocal', newvalue.strftime(simple_datetime_format))
+        # if this one is set, the other 3 need to go
+        for ename in ('StartDateTimeOffset', 'StartDateTimeLocalOffset', 'StartDateTime'):
+            n = self._get_child_elem(ename)
+            if n is not None:
+                self.base_node.removeChild(n)
+
+    @property
+    def HasEndTime(self):
+        if self._value_for_elem('HasEndTime') is None:
+            return None
+        return self._str2bool(self._value_for_elem('HasEndTime'))
+    @HasEndTime.setter
+    def HasEndTime(self, newvalue):
+        if newvalue not in (True, False):
+            raise ValueError('HasEndTime can only be true or false')
+        if not self._exists_child_elem('HasEndTime'):
+            self._create_child_elem('HasEndTime')
+        self._set_newvalue_for_elem('HasEndTime', self._bool2str(newvalue))
+        # if it is false, then we should drop all EndDate... elements
+        if not newvalue:
+            n = self._get_child_elem('EndDateTimeOffset')
+            if n is not None:
+                self.base_node.removeChild(n)
+            n = self._get_child_elem('EndDateTimeLocalOffset')
+            if n is not None:
+                self.base_node.removeChild(n)
+            n = self._get_child_elem('EndDateTime')
+            if n is not None:
+                self.base_node.removeChild(n)
+            n = self._get_child_elem('EndDateTimeLocal')
+            if n is not None:
+                self.base_node.removeChild(n)
+
+    @property
+    def EndDateTimeOffset(self):
+        return self._value_for_elem('EndDateTimeOffset')
+    @EndDateTimeOffset.setter
+    def EndDateTimeOffset(self, newvalue):
+        if re.search('^\-?P([0-9]+D)?(T([0-9]+H)?([0-9]+M)?([0-9]+(\.[0-9]{1,6})?S)?)?$', newvalue) is None:
+            raise ValueError('Incorrectly formatted offset.')
+        if not self._exists_child_elem('EndDateTimeOffset'):
+            self._create_child_elem('EndDateTimeOffset')
+        self._set_newvalue_for_elem('EndDateTimeOffset', newvalue)
+        if not self.HasEndTime:
+            self.HasEndTime = True
+        # if this one is set, the other 3 need to go
+        for ename in ('EndDateTimeLocalOffset', 'EndDateTime', 'EndDateTimeLocal'):
+            n = self._get_child_elem(ename)
+            if n is not None:
+                self.base_node.removeChild(n)
+
+    @property
+    def EndDateTimeLocalOffset(self):
+        return self._value_for_elem('EndDateTimeLocalOffset')
+    @EndDateTimeLocalOffset.setter
+    def EndDateTimeLocalOffset(self, newvalue):
+        if re.search('^\-?P([0-9]+D)?(T([0-9]+H)?([0-9]+M)?([0-9]+(\.[0-9]{1,6})?S)?)?$', newvalue) is None:
+            raise ValueError('Incorrectly formatted offset.')
+        if not self._exists_child_elem('EndDateTimeLocalOffset'):
+            self._create_child_elem('EndDateTimeLocalOffset')
+        self._set_newvalue_for_elem('EndDateTimeLocalOffset', newvalue)
+        if not self.HasEndTime:
+            self.HasEndTime = True
+        # if this one is set, the other 3 need to go
+        for ename in ('EndDateTimeOffset', 'EndDateTime', 'EndDateTimeLocal'):
+            n = self._get_child_elem(ename)
+            if n is not None:
+                self.base_node.removeChild(n)
+
+    @property
+    def EndDateTime(self):
+        if not self._exists_child_elem('EndDateTime'):
+            return None
+        return datetime.strptime(self._value_for_elem('EndDateTime'), simple_datetime_format)
+    @EndDateTime.setter
+    def EndDateTime(self, newvalue):
+        if not isinstance(newvalue, datetime):
+            raise ValueError('Only accepts datetime objects')
+        if not self._exists_child_elem('EndDateTime'):
+            self._create_child_elem('EndDateTime')
+        self._set_newvalue_for_elem('EndDateTime', newvalue.strftime(simple_datetime_format))
+        # if this one is set, the other 3 need to go
+        for ename in ('EndDateTimeOffset', 'EndDateTimeLocalOffset', 'EndDateTimeLocal'):
+            n = self._get_child_elem(ename)
+            if n is not None:
+                self.base_node.removeChild(n)
+
+    @property
+    def EndDateTimeLocal(self):
+        if not self._exists_child_elem('EndDateTimeLocal'):
+            return None
+        return datetime.strptime(self._value_for_elem('EndDateTimeLocal'), simple_datetime_format)
+    @EndDateTimeLocal.setter
+    def EndDateTimeLocal(self, newvalue):
+        if not isinstance(newvalue, datetime):
+            raise ValueError('Only accepts datetime objects')
+        if not self._exists_child_elem('EndDateTimeLocal'):
+            self._create_child_elem('EndDateTimeLocal')
+        self._set_newvalue_for_elem('EndDateTimeLocal', newvalue.strftime(simple_datetime_format))
+        # if this one is set, the other 3 need to go
+        for ename in ('EndDateTimeOffset', 'EndDateTimeLocalOffset', 'EndDateTime'):
+            n = self._get_child_elem(ename)
+            if n is not None:
+                self.base_node.removeChild(n)
 
 
 
