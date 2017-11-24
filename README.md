@@ -170,3 +170,4 @@ This clearly shows that after the site has been generated and appended to payloa
 # Known limitations
 * When moving elements from one container to the other, it needs to be explicitly removed from one container, using del and then appended to the other container. In some rare cases the code can act unexpectedly and will not cleanup one container after it's element is moved to the other one.
 * This library relies on python builtin xml.dom and xml.dom.minidom implementations. These are not memory efficient implementations, so it is highly advised to be cautious when processing large batches of data at once. Always try to process as few objects as possible at any given time.
+* Every attribute returning list or dict cannot be operated on directly. For such attributes, a list/dict needs to be stored in separate variable, modified on that variable, and then assigned back to the given attribute

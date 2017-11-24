@@ -258,7 +258,7 @@ class BaseFixlet(BESCoreElement):
             raise TypeError('Needs to be more or equal to 0')
         if not self._exists_child_elem('DownloadSize'):
             self._create_child_elem('DownloadSize')
-        self._set_newvalue_for_elem('DownloadSize', newvalue)
+        self._set_newvalue_for_elem('DownloadSize', str(newvalue))
 
     @property
     def Source(self):
@@ -763,7 +763,7 @@ class ActionSettings(BESCoreElement):
             raise ValueError('ReapplyLimit can only be non-negative integer')
         if not self._exists_child_elem('ReapplyLimit'):
             self._create_child_elem('ReapplyLimit')
-        self._set_newvalue_for_elem('ReapplyLimit', newvalue)
+        self._set_newvalue_for_elem('ReapplyLimit', str(newvalue))
 
     @property
     def HasReapplyInterval(self):
@@ -829,7 +829,7 @@ class ActionSettings(BESCoreElement):
     def ContinueOnErrors(self, newvalue):
         if newvalue not in (True, False):
             raise ValueError('ContinueOnErrors can only be true or false')
-        if not self._exits_child_elem('ContinueOnErrors'):
+        if not self._exists_child_elem('ContinueOnErrors'):
             self._create_child_elem('ContinueOnErrors')
         self._set_newvalue_for_elem('ContinueOnErrors', self._bool2str(newvalue))
 
@@ -842,7 +842,7 @@ class ActionSettings(BESCoreElement):
     def IsOffer(self, newvalue):
         if newvalue not in (True, False):
             raise ValueError('IsOffer can only be true or false')
-        if not self._exits_child_elem('IsOffer'):
+        if not self._exists_child_elem('IsOffer'):
             self._create_child_elem('IsOffer')
         self._set_newvalue_for_elem('IsOffer', self._bool2str(newvalue))
 
@@ -855,7 +855,7 @@ class ActionSettings(BESCoreElement):
     def AnnounceOffer(self, newvalue):
         if newvalue not in (True, False):
             raise ValueError('AnnounceOffer can only be true or false')
-        if not self._exits_child_elem('AnnounceOffer'):
+        if not self._exists_child_elem('AnnounceOffer'):
             self._create_child_elem('AnnounceOffer')
         self._set_newvalue_for_elem('AnnounceOffer', self._bool2str(newvalue))
 
@@ -1391,6 +1391,327 @@ class Property(BESCoreElement):
             self.base_node.removeChild(self.base_node.childNodes[0])
         t_node = self.base_node.ownerDocument.createTextNode(newvalue)
         self.base_node.appendChild(t_node)
+
+
+
+
+class BESActionSourceFixlet(BESCoreElement):
+    def __init__(self, *args, **kwargs):
+        try:
+            self._base_node_name
+        except AttributeError as e:
+            self._base_node_name = 'SourceFixlet'
+        super(BESActionSourceFixlet, self).__init__(*args, **kwargs)
+        self._field_order = ('GatherURL', 'Sitename', 'SiteID', 'FixletID', 'Action')
+    def _create_empty_element(self, *args, **kwargs):
+        super(BESActionSourceFixlet, self)._create_empty_element(*args, **kwargs)
+        gu_node = self.base_node.ownerDocument.createElement('GatherURL')
+        gu_node.appendChild(self.base_node.ownerDocument.createTextNode(''))
+        fid_node = self.base_node.ownerDocument.createElement('FixletID')
+        fid_node.appendChild(self.base_node.ownerDocument.createTextNode('0'))
+        self.base_node.appendChild(gu_node)
+        self.base_node.appendChild(fid_node)
+
+    @property
+    def GatherURL(self):
+        return self._value_for_elem('GatherURL')
+    @GatherURL.setter
+    def GatherURL(self, newvalue):
+        if isinstance(newvalue, (str, unicode)):
+            pass # we do nothing, newvalue is our new value
+        elif isinstance(newvalue, (Site, APIGenericSite)):
+            newvalue = newvalue.GatherURL # we're extracting actual value from object
+        else:
+            raise ValueError('GatherURL can either be string representation or site object')
+        if not self._exists_child_elem('GatherURL'):
+            self._create_child_elem('GatherURL')
+        self._set_newvalue_for_elem('GatherURL', newvalue)
+        # if this one is set, the other two need to go
+        for ename in ('Sitename', 'SiteID'):
+            if self._exists_child_elem(ename):
+                n = self._get_child_elem(ename)
+                self.base_node.removeChild(n)
+
+    @property
+    def Sitename(self):
+        return self._value_for_elem('Sitename')
+    @Sitename.setter
+    def Sitename(self, newvalue):
+        if isinstance(newvalue, (str, unicode)):
+            pass # we do nothing, newvalue is our new value
+        elif isinstance(newvalue, (Site, APIGenericSite)):
+            newvalue = newvalue.Name
+        else:
+            raise ValueError('GatherURL can either be string representation or site object')
+        if not self._exists_child_elem('Sitename'):
+            self._create_child_elem('Sitename')
+        self._set_newvalue_for_elem('Sitename', newvalue)
+        # if this one is set, the other two need to go
+        for ename in ('GatherURL', 'SiteID'):
+            if self._exists_child_elem(ename):
+                n = self._get_child_elem(ename)
+                self.base_node.removeChild(n)
+
+    @property
+    def SiteID(self):
+        return self._value_for_elem('SiteID')
+    @SiteID.setter
+    def SiteID(self, newvalue):
+        if not isinstance(newvalue, int) or newvalue < 0:
+            raise ValueError('SiteID must be an integer greater than 0')
+        if not self._exists_child_elem('SiteID'):
+            self._create_child_elem('SiteID')
+        self._set_newvalue_for_elem('SiteID')
+        # if this one is set, the other two need to go
+        for ename in ('GatherURL', 'Sitename'):
+            if self._exists_child_elem(ename):
+                n = self._get_child_elem(ename)
+                self.base_node.removeChild(n)
+    @property
+    def FixletID(self):
+        return self._value_for_elem('FixletID')
+    @FixletID.setter
+    def FixletID(self, newvalue):
+        if not isinstance(newvalue, int) or newvalue < 0:
+            raise ValueError('FixletID must be an integer greater than 0')
+        if not self._exists_child_elem('FixletID'):
+            self._create_child_elem('FixletID')
+        self._set_newvalue_for_elem('FixletID', str(newvalue))
+
+    @property
+    def Action(self):
+        return self._value_for_elem('Action')
+    @Action.setter
+    def Action(self, newvalue):
+        if not self._exists_child_elem('Action'):
+            self._create_child_elem('Action')
+        self._set_newvalue_for_elem('Action', newvalue)
+
+class BESActionTarget(BESCoreElement):
+    def __init__(self, *args, **kwargs):
+        try:
+            self._base_node_name
+        except AttributeError as e:
+            self._base_node_name = 'Target'
+        super(BESActionTarget, self).__init__(*args, **kwargs)
+        self._field_order = ('ComputerName', 'ComputerID', 'CustomRelevance', 'AllComputers')
+
+    @property
+    def ComputerName(self):
+        if not self._exists_child_elem('ComputerName'):
+            return None
+        out = []
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'ComputerName':
+                try:
+                    out.append(elem.childNodes[0].nodeValue)
+                except Exception as e:
+                    pass # if there's a problem, we add nothing to our list
+        return out
+    @ComputerName.setter
+    def ComputerName(self, newvalue):
+        if not isinstance(newvalue, (list, tuple)):
+            raise ValueError('ComputerName can only be a list or a tuple of names')
+        # drop all current elements
+        while len(self.base_node.childNodes) > 0:
+            self.base_node.removeChild(self.base_node.childNodes[0])
+        for elem in newvalue:
+            n = self.base_node.ownerDocument.createElement('ComputerName')
+            n.appendChild(self.base_node.ownerDocument.createTextNode(elem))
+            self.base_node.appendChild(n)
+
+    @property
+    def ComputerID(self):
+        if not self._exists_child_elem('ComputerID'):
+            return None
+        out = []
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'ComputerID':
+                try:
+                    out.append(elem.childNodes[0].nodeValue)
+                except Exception as e:
+                    pass # if there's a problem, we add nothing to our list
+        return out
+    @ComputerID.setter
+    def ComputerID(self, newvalue):
+        if not isinstance(newvalue, (list, tuple)):
+            raise ValueError('ComputerID can only be a list or a tuple of ids')
+        # drop all current elements
+        while len(self.base_node.childNodes) > 0:
+            self.base_node.removeChild(self.base_node.childNodes[0])
+        for elem in newvalue:
+            n = self.base_node.ownerDocument.createElement('ComputerID')
+            n.appendChild(self.base_node.ownerDocument.createTextNode(str(elem)))
+            self.base_node.appendChild(n)
+
+    @property
+    def CustomRelevance(self):
+        return self._value_for_elem('CustomRelevance')
+    @CustomRelevance.setter
+    def CustomRelevance(self, newvalue):
+        # drop all current elements
+        while len(self.base_node.childNodes) > 0:
+            self.base_node.removeChild(self.base_node.childNodes[0])
+        self._create_child_elem('CustomRelevance')
+        self._set_newvalue_for_elem('CustomRelevance', newvalue)
+
+    @property
+    def AllComputers(self):
+        if not self._exists_child_elem('AllComputers'):
+            return None
+        return self._str2bool(self._value_for_elem('AllComputers'))
+    @AllComputers.setter
+    def AllComputers(self, newvalue):
+        if newvalue not in (True, False):
+            raise ValueError('AllComputers can only be true or false')
+        # drop all current elements
+        while len(self.base_node.childNodes) > 0:
+            self.base_node.removeChild(self.base_node.childNodes[0])
+        self._create_child_elem('AllComputers')
+        self._set_newvalue_for_elem('AllComputers', self._bool2str(newvalue))
+
+class SourcedFixletAction(BESCoreElement):
+    __slots__ = ('_source_fixlet_o', '_target_o', '_settings_o')
+
+    def __init__(self, *args, **kwargs):
+        self._base_node_name = 'SourcedFixletAction'
+        super(SourcedFixletAction, self).__init__(*args, **kwargs)
+        self._field_order = ('SourceFixlet', 'Target', 'Parameter', 'SecureParameter', 'Settings', 'IsUrgent', 'Title')
+        self._source_fixlet_o = None
+        self._target_o = None
+        self._settings_o = None
+    def _create_empty_element(self, *args, **kwargs):
+        super(SourcedFixletAction, self)._create_empty_element(*args, **kwargs)
+        self.base_node.setAttribute('SkipUI', 'true')
+        sf_node = self.base_node.ownerDocument.createElement('SourceFixlet')
+        self.base_node.appendChild(sf_node)
+
+    @property
+    def SkipUI(self):
+        if self.base_node.getAttribute('SkipUI') is None or self.base_node.getAttribute('SkipUI') == '':
+            return None
+        return self._str2bool(self.base_node.getAttribute('SkipUI'))
+    @SkipUI.setter
+    def SkipUI(self, newvalue):
+        if newvalue not in (True, False):
+            raise ValueError('SkipUI only accepts true or false')
+        self.base_node.setAttribute('SkipUI', self._bool2str(newvalue))
+
+    @property
+    def SourceFixlet(self):
+        if self._source_fixlet_o is not None:
+            return self._source_fixlet_o
+        if not self._exists_child_elem('SourceFixlet'):
+            self._create_child_elem('SourceFixlet')
+        self._source_fixlet_o = BESActionSourceFixlet(self._get_child_elem('SourceFixlet'))
+        return self._source_fixlet_o
+
+    @property
+    def Target(self):
+        if self._target_o is not None:
+            return self._target_o
+        if not self._exists_child_elem('Target'):
+            self._create_child_elem('Target')
+        self._target_o = BESActionTarget(self._get_child_elem('Target'))
+        return self._target_o
+
+    @property
+    def Parameter(self):
+        if not self._exists_child_elem('Parameter'):
+            return None
+        out = {}
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'Parameter':
+                try:
+                    out[elem.getAttribute('Name')] = elem.childNodes[0].nodeValue
+                except Exception as e:
+                    pass # if something is wrong with a parameter, we ignore it
+        return out
+    @Parameter.setter
+    def Parameter(self, newvalue):
+        if not isinstance(newvalue, dict):
+            raise ValueError('Parameter will only accept a dictionary of parameters')
+        # clear all current parameters
+        while self._exists_child_elem('Parameter'):
+            n = self._get_child_elem('Parameter')
+            self.base_node.removeChild('Parameter')
+        for x in xrange(len(newvalue.keys())):
+            self._create_child_elem('Parameter')
+        plist = []
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'Parameter':
+                plist.append(elem)
+        for k,v in newvalue.iteritems():
+            pnode = plist.pop(0)
+            pnode.setAttribute('Name', k)
+            pnode.appendChild(pnode.ownerDocument.createTextNode(v))
+
+    @property
+    def SecureParameter(self):
+        if not self._exists_child_elem('SecureParameter'):
+            return None
+        out = {}
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'SecureParameter':
+                try:
+                    out[elem.getAttribute('Name')] = elem.childNodes[0].nodeValue
+                except Exception as e:
+                    pass # if something is wrong with a parameter, we ignore it
+        return out
+    @SecureParameter.setter
+    def SecureParameter(self, newvalue):
+        if not isinstance(newvalue, dict):
+            raise ValueError('SecureParameter will only accept a dictionary of parameters')
+        # clear all current parameters
+        while self._exists_child_elem('SecureParameter'):
+            n = self._get_child_elem('SecureParameter')
+            self.base_node.removeChild('SecureParameter')
+        for x in xrange(len(newvalue.keys())):
+            self._create_child_elem('SecureParameter')
+        plist = []
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'SecureParameter':
+                plist.append(elem)
+        for k,v in newvalue.iteritems():
+            pnode = plist.pop(0)
+            pnode.setAttribute('Name', k)
+            pnode.appendChild(pnode.ownerDocument.createTextNode(v))
+
+    @property
+    def Settings(self):
+        if self._settings_o is not None:
+            return self._settings_o
+        if not self._exists_child_elem('Settings'):
+            self._create_child_elem('Settings')
+        self._settings_o = ActionSettings(self._get_child_elem('Settings'))
+        return self._settings_o
+
+    @property
+    def Title(self):
+        return self._value_for_elem('Title')
+    @Title.setter
+    def Title(self, newvalue):
+        if not isinstance(newvalue, (str, unicode)):
+            raise ValueError('Title can only be str or unicode')
+        if len(newvalue) < 1 or len(newvalue) > 255:
+            raise ValueError('Title can only be 1 to 255 characters long')
+        if not self._exists_child_elem('Title'):
+            self._create_child_elem('Title')
+        self._set_newvalue_for_elem('Title', newvalue)
+
+    @property
+    def IsUrgent(self):
+        if not self._exists_child_elem('IsUrgent'):
+            return None
+        return self._str2bool(self._value_for_elem('IsUrgent'))
+    @IsUrgent.setter
+    def IsUrgent(self, newvalue):
+        if newvalue not in (True, False):
+            raise ValueError('IsUrgent can only be true or false')
+        if not self._exists_child_elem('IsUrgent'):
+            self._create_child_elem('IsUrgent')
+        self._set_newvalue_for_elem('IsUrgent', self._bool2str(newvalue))
+
 
 
 
