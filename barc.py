@@ -789,6 +789,95 @@ class ActionSettings(BESCoreElement):
             self._create_child_elem('ReapplyInterval')
         self._set_newvalue_for_elem('ReapplyInterval', newvalue)
 
+    @property
+    def HasTemporalDistribution(self):
+        if not self._exists_child_elem('HasTemporalDistribution'):
+            return None
+        return self._str2bool(self._value_for_elem('HasTemporalDistribution'))
+    @HasTemporalDistribution.setter
+    def HasTemporalDistribution(self, newvalue):
+        if newvalue not in (True, False):
+            raise ValueError('HasTemporalDistribution can only be true or false')
+        if not self._exists_child_elem('HasTemporalDistribution'):
+            self._create_child_elem('HasTemporalDistribution')
+        self._set_newvalue_for_elem('HasTemporalDistribution', self._bool2str(newvalue))
+        # if this is false, drop TemporalDistribution
+        if not newvalue and self._exists_child_elem('TemporalDistribution'):
+            td_node = self._get_child_elem('TemporalDistribution')
+            self.base_node.removeChild(td_node)
+
+    @property
+    def TemporalDistribution(self):
+        return self._value_for_elem('TemporalDistribution')
+    @TemporalDistribution.setter
+    def TemporalDistribution(self, newvalue):
+        if re.search('^P([0-9]+D)?(T([0-9]+H)?([0-9]+M)?([0-9]+(\.[0-9]{1,6})?S)?)?$', newvalue) is None:
+            raise ValueError('Incorrect value for TemporalDistribution')
+        if not self._exists_child_elem('TemporalDistribution'):
+            self._create_child_elem('TemporalDistribution')
+        self._set_newvalue_for_elem('TemporalDistribution', newvalue)
+        # if this is set, then raise flag to true
+        if not self.HasTemporalDistribution:
+            self.HasTemporalDistribution = True
+
+    @property
+    def ContinueOnErrors(self):
+        if not self._exists_child_elem('ContinueOnErrors'):
+            return None
+        return self._str2bool(self._value_for_elem('ContinueOnErrors'))
+    @ContinueOnErrors.setter
+    def ContinueOnErrors(self, newvalue):
+        if newvalue not in (True, False):
+            raise ValueError('ContinueOnErrors can only be true or false')
+        if not self._exits_child_elem('ContinueOnErrors'):
+            self._create_child_elem('ContinueOnErrors')
+        self._set_newvalue_for_elem('ContinueOnErrors', self._bool2str(newvalue))
+
+    @property
+    def IsOffer(self):
+        if not self._exists_child_elem('IsOffer'):
+            return None
+        return self._str2bool(self._value_for_elem('IsOffer'))
+    @IsOffer.setter
+    def IsOffer(self, newvalue):
+        if newvalue not in (True, False):
+            raise ValueError('IsOffer can only be true or false')
+        if not self._exits_child_elem('IsOffer'):
+            self._create_child_elem('IsOffer')
+        self._set_newvalue_for_elem('IsOffer', self._bool2str(newvalue))
+
+    @property
+    def AnnounceOffer(self):
+        if not self._exists_child_elem('AnnounceOffer'):
+            return None
+        return self._str2bool(self._value_for_elem('AnnounceOffer'))
+    @AnnounceOffer.setter
+    def AnnounceOffer(self, newvalue):
+        if newvalue not in (True, False):
+            raise ValueError('AnnounceOffer can only be true or false')
+        if not self._exits_child_elem('AnnounceOffer'):
+            self._create_child_elem('AnnounceOffer')
+        self._set_newvalue_for_elem('AnnounceOffer', self._bool2str(newvalue))
+
+    @property
+    def OfferCategory(self):
+        return self._value_for_elem('OfferCategory')
+    @OfferCategory.setter
+    def OfferCategory(self, newvalue):
+        if not self._exists_child_elem('OfferCategory'):
+            self._create_child_elem('OfferCategory')
+        self._set_newvalue_for_elem('OfferCategory', newvalue)
+
+    @property
+    def OfferDescriptionHTML(self):
+        return self._value_for_elem('OfferDescriptionHTML')
+    @OfferDescriptionHTML.setter
+    def OfferDescriptionHTML(self, newvalue):
+        if not self._exists_child_elem('OfferDescriptionHTML'):
+            self._create_child_elem('OfferDescriptionHTML')
+        self._set_newvalue_for_elem('OfferDescriptionHTML', newvalue)
+
+
 
 
 class FixletAction(BESCoreElement):
