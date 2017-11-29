@@ -139,6 +139,202 @@ class BESAPICoreElement(object):
 
 
 
+#### Reusable properties ####
+#
+# Following classes contain  reusable properties,
+# which are complex enough to move them for subclassing
+#
+####
+class SuccessCriteriaProperty(object):
+    @property
+    def SuccessCriteria(self):
+        if not self._exists_child_elem('SuccessCriteria'):
+            return None
+        sc_node = self._get_child_elem('SuccessCriteria')
+        if sc_node.getAttribute('Option') in ('RunToCompletion', 'OriginalRelevance'):
+            return sc_node.getAttribute('Option')
+        else:
+            return self._value_for_elem('SuccessCriteria')
+    @SuccessCriteria.setter
+    def SuccessCriteria(self, newvalue):
+        if not self._exists_child_elem('SuccessCriteria'):
+            self._create_child_elem('SuccessCriteria')
+        # clear success criteria of all it's subnodes
+        sc_node = self._get_child_elem('SuccessCriteria')
+        while len(sc_node.childNodes) > 0:
+            sc_node.removeChild(sc_node.childNodes[0])
+
+        if newvalue in ('RunToCompletion', 'OriginalRelevance'):
+            sc_node.setAttribute('Option', newvalue)
+        else:
+            sc_node.setAttribute('Option', 'CustomRelevance')
+            sc_node.appendChild(self.base_node.ownerDocument.createTextNode(newvalue))
+
+    @property
+    def SuccessCriteriaLocked(self):
+        if self._value_for_elem('SuccessCriteriaLocked') is None:
+            return None
+        return self._str2bool(self._value_for_elem('SuccessCriteriaLocked'))
+    @SuccessCriteriaLocked.setter
+    def SuccessCriteriaLocked(self, newvalue):
+        if newvalue not in (True, False):
+            raise ValueError('SuccessCriteriaLocked can only be true or false')
+        if not self._exists_child_elem('SuccessCriteriaLocked'):
+            self._create_child_elem('SuccessCriteriaLocked')
+        self._set_newvalue_for_elem('SuccessCriteriaLocked', self._bool2str(newvalue))
+
+
+class ParameterProperty(object):
+    @property
+    def Parameter(self):
+        if not self._exists_child_elem('Parameter'):
+            return None
+        out = {}
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'Parameter':
+                try:
+                    out[elem.getAttribute('Name')] = elem.childNodes[0].nodeValue
+                except Exception as e:
+                    pass # if something is wrong with a parameter, we ignore it
+        return out
+    @Parameter.setter
+    def Parameter(self, newvalue):
+        if not isinstance(newvalue, dict):
+            raise ValueError('Parameter will only accept a dictionary of parameters')
+        # clear all current parameters
+        while self._exists_child_elem('Parameter'):
+            n = self._get_child_elem('Parameter')
+            self.base_node.removeChild('Parameter')
+        for x in xrange(len(newvalue.keys())):
+            self._create_child_elem('Parameter', False)
+        plist = []
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'Parameter':
+                plist.append(elem)
+        for k,v in newvalue.iteritems():
+            pnode = plist.pop(0)
+            pnode.setAttribute('Name', k)
+            pnode.appendChild(pnode.ownerDocument.createTextNode(v))
+
+    @property
+    def SecureParameter(self):
+        if not self._exists_child_elem('SecureParameter'):
+            return None
+        out = {}
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'SecureParameter':
+                try:
+                    out[elem.getAttribute('Name')] = elem.childNodes[0].nodeValue
+                except Exception as e:
+                    pass # if something is wrong with a parameter, we ignore it
+        return out
+    @SecureParameter.setter
+    def SecureParameter(self, newvalue):
+        if not isinstance(newvalue, dict):
+            raise ValueError('SecureParameter will only accept a dictionary of parameters')
+        # clear all current parameters
+        while self._exists_child_elem('SecureParameter'):
+            n = self._get_child_elem('SecureParameter')
+            self.base_node.removeChild('SecureParameter')
+        for x in xrange(len(newvalue.keys())):
+            self._create_child_elem('SecureParameter', False)
+        plist = []
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'SecureParameter':
+                plist.append(elem)
+        for k,v in newvalue.iteritems():
+            pnode = plist.pop(0)
+            pnode.setAttribute('Name', k)
+            pnode.appendChild(pnode.ownerDocument.createTextNode(v))
+
+
+class ActionScriptProperty(object):
+    @property
+    def ActionScript(self):
+        return self._value_for_elem('ActionScript')
+    @ActionScript.setter
+    def ActionScript(self, newvalue):
+        if not self._exists_child_elem('ActionScript'):
+            self._create_child_elem('ActionScript')
+        self._set_newvalue_for_elem('ActionScript', newvalue)
+
+    @property
+    def MIMEType(self):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'ActionScript':
+                return elem.getAttribute('MIMEType')
+    @MIMEType.setter
+    def MIMEType(self, newvalue):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'ActionScript':
+                elem.setAttribute('MIMEType', newvalue)
+                break
+
+
+class MIMEFieldProperty(object):
+    @property
+    def MIMEFields(self):
+        m_list = []
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'MIMEField':
+                m_list.append(MIMEField(elem))
+        return m_list
+    @MIMEFields.setter
+    def MIMEFields(self, newvalue):
+        if type(newvalue) not in (list, tuple):
+            raise TypeError('Always provide a list of relevance clauses to add')
+        for elem in newvalue:
+            if type(elem) is not MIMEField:
+                raise TypeError('List should contain MIMEField objects')
+        # first clear all MIMEField elements
+        to_remove = []
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'MIMEField':
+                to_remove.append(elem)
+        for elem in to_remove:
+            self.base_node.removeChild(elem)
+        # now add all new MIMEField elements
+        for x in xrange(len(newvalue)):
+            self._create_child_elem('MIMEField')
+        # and add all proper values
+        m_nodes = self.base_node.getElementsByTagName('MIMEField')
+        for x in xrange(len(newvalue)):
+            #r_nodes[x].childNodes[0].nodeValue = newvalue[x]
+            self.base_node.replaceChild(newvalue[x].base_node, m_nodes[x])
+
+
+class RelevanceProperty(object):
+    @property
+    def Relevance(self):
+        rlist = []
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'Relevance':
+                rlist.append(elem.childNodes[0].nodeValue)
+        return rlist
+    @Relevance.setter
+    def Relevance(self, newvalue):
+        if type(newvalue) not in (list, tuple):
+            raise TypeError('Always provide a list of relevance clauses to add')
+        # first clear all relevance elements
+        to_remove = []
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'Relevance':
+                to_remove.append(elem)
+        for elem in to_remove:
+            self.base_node.removeChild(elem)
+        # now add all new relevance elements
+        for x in xrange(len(newvalue)):
+            self._create_child_elem('Relevance')
+        # and add all proper values
+        r_nodes = self.base_node.getElementsByTagName('Relevance')
+        for x in xrange(len(newvalue)):
+            r_nodes[x].childNodes[0].nodeValue = newvalue[x]
+
+
+
+
+
+
 
 #### BES Elements ####
 class MIMEField(BESCoreElement):
@@ -172,7 +368,7 @@ class MIMEField(BESCoreElement):
             self._create_child_elem('Value')
         self._set_newvalue_for_elem('Value', newvalue)
 
-class BaseFixlet(BESCoreElement):
+class BaseFixlet(BESCoreElement, MIMEFieldProperty, RelevanceProperty):
     def __init__(self, *args, **kwargs):
         try:
             tmp = self._base_node_name
@@ -211,32 +407,6 @@ class BaseFixlet(BESCoreElement):
         if not self._exists_child_elem('Description'):
             self._create_child_elem('Description')
         self._set_newvalue_for_elem('Description', newvalue)
-
-    @property
-    def Relevance(self):
-        rlist = []
-        for elem in self.base_node.childNodes:
-            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'Relevance':
-                rlist.append(elem.childNodes[0].nodeValue)
-        return rlist
-    @Relevance.setter
-    def Relevance(self, newvalue):
-        if type(newvalue) not in (list, tuple):
-            raise TypeError('Always provide a list of relevance clauses to add')
-        # first clear all relevance elements
-        to_remove = []
-        for elem in self.base_node.childNodes:
-            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'Relevance':
-                to_remove.append(elem)
-        for elem in to_remove:
-            self.base_node.removeChild(elem)
-        # now add all new relevance elements
-        for x in xrange(len(newvalue)):
-            self._create_child_elem('Relevance')
-        # and add all proper values
-        r_nodes = self.base_node.getElementsByTagName('Relevance')
-        for x in xrange(len(newvalue)):
-            r_nodes[x].childNodes[0].nodeValue = newvalue[x]
 
     @property
     def Category(self):
@@ -313,37 +483,6 @@ class BaseFixlet(BESCoreElement):
         if not self._exists_child_elem('SANSID'):
             self._create_child_elem('SANSID')
         self._set_newvalue_for_elem('SANSID', newvalue)
-
-    @property
-    def MIMEFields(self):
-        m_list = []
-        for elem in self.base_node.childNodes:
-            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'MIMEField':
-                m_list.append(MIMEField(elem))
-        return m_list
-    @MIMEFields.setter
-    def MIMEFields(self, newvalue):
-        if type(newvalue) not in (list, tuple):
-            raise TypeError('Always provide a list of relevance clauses to add')
-        for elem in newvalue:
-            if type(elem) is not MIMEField:
-                raise TypeError('List should contain MIMEField objects')
-        # first clear all MIMEField elements
-        to_remove = []
-        for elem in self.base_node.childNodes:
-            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'MIMEField':
-                to_remove.append(elem)
-        for elem in to_remove:
-            self.base_node.removeChild(elem)
-        # now add all new MIMEField elements
-        for x in xrange(len(newvalue)):
-            self._create_child_elem('MIMEField')
-        # and add all proper values
-        m_nodes = self.base_node.getElementsByTagName('MIMEField')
-        for x in xrange(len(newvalue)):
-            #r_nodes[x].childNodes[0].nodeValue = newvalue[x]
-            self.base_node.replaceChild(newvalue[x].base_node, m_nodes[x])
-
 
     @property
     def Domain(self):
@@ -880,7 +1019,7 @@ class ActionSettings(BESCoreElement):
 
 
 
-class FixletAction(BESCoreElement):
+class FixletAction(BESCoreElement, ActionScriptProperty, SuccessCriteriaProperty):
     __slots__ = ('_settings_o', )
 
     def __init__(self, *args, **kwargs):
@@ -967,64 +1106,6 @@ class FixletAction(BESCoreElement):
             dnode.appendChild(prelink)
             dnode.appendChild(link)
             dnode.appendChild(postlink)
-
-    @property
-    def ActionScript(self):
-        return self._value_for_elem('ActionScript')
-    @ActionScript.setter
-    def ActionScript(self, newvalue):
-        if not self._exists_child_elem('ActionScript'):
-            self._create_child_elem('ActionScript')
-        self._set_newvalue_for_elem('ActionScript', newvalue)
-
-    @property
-    def MIMEType(self):
-        for elem in self.base_node.childNodes:
-            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'ActionScript':
-                return elem.getAttribute('MIMEType')
-    @MIMEType.setter
-    def MIMEType(self, newvalue):
-        for elem in self.base_node.childNodes:
-            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'ActionScript':
-                elem.setAttribute('MIMEType', newvalue)
-                break
-
-    @property
-    def SuccessCriteria(self):
-        if not self._exists_child_elem('SuccessCriteria'):
-            return None
-        sc_node = self._get_child_elem('SuccessCriteria')
-        if sc_node.getAttribute('Option') in ('RunToCompletion', 'OriginalRelevance'):
-            return sc_node.getAttribute('Option')
-        else:
-            return self._value_for_elem('SuccessCriteria')
-    @SuccessCriteria.setter
-    def SuccessCriteria(self, newvalue):
-        if not self._exists_child_elem('SuccessCriteria'):
-            self._create_child_elem('SuccessCriteria')
-        # clear success criteria of all it's subnodes
-        sc_node = self._get_child_elem('SuccessCriteria')
-        while len(sc_node.childNodes) > 0:
-            sc_node.removeChild(sc_node.childNodes[0])
-
-        if newvalue in ('RunToCompletion', 'OriginalRelevance'):
-            sc_node.setAttribute('Option', newvalue)
-        else:
-            sc_node.setAttribute('Option', 'CustomRelevance')
-            sc_node.appendChild(self.base_node.ownerDocument.createTextNode(newvalue))
-
-    @property
-    def SuccessCriteriaLocked(self):
-        if self._value_for_elem('SuccessCriteriaLocked') is None:
-            return None
-        return self._str2bool(self._value_for_elem('SuccessCriteriaLocked'))
-    @SuccessCriteriaLocked.setter
-    def SuccessCriteriaLocked(self, newvalue):
-        if newvalue not in (True, False):
-            raise ValueError('SuccessCriteriaLocked can only be true or false')
-        if not self._exists_child_elem('SuccessCriteriaLocked'):
-            self._create_child_elem('SuccessCriteriaLocked')
-        self._set_newvalue_for_elem('SuccessCriteriaLocked', self._bool2str(newvalue))
 
     @property
     def Settings(self):
@@ -1570,7 +1651,7 @@ class BESActionTarget(BESCoreElement):
         self._create_child_elem('AllComputers')
         self._set_newvalue_for_elem('AllComputers', self._bool2str(newvalue))
 
-class SourcedFixletAction(BESCoreElement):
+class SourcedFixletAction(BESCoreElement, ParameterProperty):
     __slots__ = ('_source_fixlet_o', '_target_o', '_settings_o')
 
     def __init__(self, *args, **kwargs):
@@ -1616,68 +1697,6 @@ class SourcedFixletAction(BESCoreElement):
         return self._target_o
 
     @property
-    def Parameter(self):
-        if not self._exists_child_elem('Parameter'):
-            return None
-        out = {}
-        for elem in self.base_node.childNodes:
-            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'Parameter':
-                try:
-                    out[elem.getAttribute('Name')] = elem.childNodes[0].nodeValue
-                except Exception as e:
-                    pass # if something is wrong with a parameter, we ignore it
-        return out
-    @Parameter.setter
-    def Parameter(self, newvalue):
-        if not isinstance(newvalue, dict):
-            raise ValueError('Parameter will only accept a dictionary of parameters')
-        # clear all current parameters
-        while self._exists_child_elem('Parameter'):
-            n = self._get_child_elem('Parameter')
-            self.base_node.removeChild('Parameter')
-        for x in xrange(len(newvalue.keys())):
-            self._create_child_elem('Parameter')
-        plist = []
-        for elem in self.base_node.childNodes:
-            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'Parameter':
-                plist.append(elem)
-        for k,v in newvalue.iteritems():
-            pnode = plist.pop(0)
-            pnode.setAttribute('Name', k)
-            pnode.appendChild(pnode.ownerDocument.createTextNode(v))
-
-    @property
-    def SecureParameter(self):
-        if not self._exists_child_elem('SecureParameter'):
-            return None
-        out = {}
-        for elem in self.base_node.childNodes:
-            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'SecureParameter':
-                try:
-                    out[elem.getAttribute('Name')] = elem.childNodes[0].nodeValue
-                except Exception as e:
-                    pass # if something is wrong with a parameter, we ignore it
-        return out
-    @SecureParameter.setter
-    def SecureParameter(self, newvalue):
-        if not isinstance(newvalue, dict):
-            raise ValueError('SecureParameter will only accept a dictionary of parameters')
-        # clear all current parameters
-        while self._exists_child_elem('SecureParameter'):
-            n = self._get_child_elem('SecureParameter')
-            self.base_node.removeChild('SecureParameter')
-        for x in xrange(len(newvalue.keys())):
-            self._create_child_elem('SecureParameter')
-        plist = []
-        for elem in self.base_node.childNodes:
-            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'SecureParameter':
-                plist.append(elem)
-        for k,v in newvalue.iteritems():
-            pnode = plist.pop(0)
-            pnode.setAttribute('Name', k)
-            pnode.appendChild(pnode.ownerDocument.createTextNode(v))
-
-    @property
     def Settings(self):
         if self._settings_o is not None:
             return self._settings_o
@@ -1711,6 +1730,121 @@ class SourcedFixletAction(BESCoreElement):
         if not self._exists_child_elem('IsUrgent'):
             self._create_child_elem('IsUrgent')
         self._set_newvalue_for_elem('IsUrgent', self._bool2str(newvalue))
+
+
+class SingleAction(BESCoreElement, ActionScriptProperty, SuccessCriteriaProperty, ParameterProperty, MIMEFieldProperty):
+    __slots__ = ('_settings_o', '_target_o', '_source_fixlet_o')
+
+    def __init__(self, *args, **kwargs):
+        self._base_node_name = 'SingleAction'
+        super(SingleAction, self).__init__(*args, **kwargs)
+        self._field_order = ('Title', 'Relevance', 'ActionScript', 'SuccessCriteria', 'SuccessCriteriaLocked', 'Parameter', 'SecureParameter', 'Settings', 'SettingsLocks', 'IsUrgent', 'Domain', 'Target', 'SourceFixlet', 'MIMEField')
+        self._settings_o = None
+        self._target_o = None
+        self._source_fixlet_o = None
+    def _create_empty_element(self, *args, **kwargs):
+        super(SingleAction, self)._create_empty_element(*args, **kwargs)
+        self.base_node.setAttribute('SkipUI', 'true')
+        t_node = self.base_node.ownerDocument.createElement('Title')
+        t_node.appendChild(self.base_node.ownerDocument.createTextNode(''))
+        r_node = self.base_node.ownerDocument.createElement('Relevance')
+        r_node.appendChild(self.base_node.ownerDocument.createTextNode('true'))
+        as_node = self.base_node.ownerDocument.createElement('ActionScript')
+        as_node.appendChild(self.base_node.ownerDocument.createTextNode(''))
+        as_node.setAttribute('MIMEType', 'application/x-Fixlet-Windows-Shell')
+        self.base_node.appendChild(t_node)
+        self.base_node.appendChild(r_node)
+        self.base_node.appendChild(as_node)
+
+    @property
+    def SkipUI(self):
+        if self.base_node.getAttribute('SkipUI') is None or self.base_node.getAttribute('SkipUI') == '':
+            return None
+        return self._str2bool(self.base_node.getAttribute('SkipUI'))
+    @SkipUI.setter
+    def SkipUI(self, newvalue):
+        if newvalue not in (True, False):
+            raise ValueError('SkipUI only accepts true or false')
+        self.base_node.setAttribute('SkipUI', self._bool2str(newvalue))
+
+    @property
+    def Title(self):
+        return self._value_for_elem('Title')
+    @Title.setter
+    def Title(self, newvalue):
+        if not isinstance(newvalue, (str, unicode)):
+            raise ValueError('Title should be a string')
+        if len(newvalue) < 1 or len(newvalue) > 255:
+            raise ValueError('Title needs to be at least 1 character and at most 255 characters')
+        if not self._exists_child_elem('Title'):
+            self._create_child_elem('Title')
+        self._set_newvalue_for_elem('Title', newvalue)
+
+    @property
+    def Relevance(self):
+        return self._value_for_elem('Relevance')
+    @Relevance.setter
+    def Relevance(self, newvalue):
+        if not isinstance(newvalue, (str, unicode)):
+            raise ValueError('Relevance should be a string')
+        if not self._exists_child_elem('Relevance'):
+            self._create_child_elem('Relevance')
+        self._set_newvalue_for_elem('Relevance', newvalue)
+
+    @property
+    def Settings(self):
+        if self._settings_o is not None:
+            return self._settings_o
+        if not self._exists_child_elem('Settings'):
+            self._create_child_elem('Settings', False)
+        self._settings_o = ActionSettings(self._get_child_elem('Settings'))
+        return self._settings_o
+
+    @property
+    def IsUrgent(self):
+        if not self._exists_child_elem('IsUrgent'):
+            return False
+        return self._str2bool(self._value_for_elem('IsUrgent'))
+    @IsUrgent.setter
+    def IsUrgent(self, newvalue):
+        if newvalue not in (True, False):
+            raise ValueError('IsUrgent can only be true or false')
+        if not self._exists_child_elem('IsUrgent'):
+            self._create_child_elem('IsUrgent')
+        self._set_newvalue_for_elem('IsUrgent', self._bool2str(newvalue))
+
+    @property
+    def Domain(self):
+        return self._value_for_elem('Domain')
+    @Domain.setter
+    def Domain(self, newvalue):
+        if type(newvalue) not in (str, unicode):
+            raise TypeError('Needs to be string or unicode')
+        if len(newvalue) != 4:
+            raise ValueError('Domain needs to be exactly 4 characters long')
+        if not self._exists_child_elem('Domain'):
+            self._create_child_elem('Domain')
+        self._set_newvalue_for_elem('Domain', newvalue)
+
+    @property
+    def Target(self):
+        if self._target_o is not None:
+            return self._target_o
+        if not self._exists_child_elem('Target'):
+            self._create_child_elem('Target')
+        self._target_o = BESActionTarget(self._get_child_elem('Target'))
+        return self._target_o
+
+    @property
+    def SourceFixlet(self):
+        if self._source_fixlet_o is not None:
+            return self._source_fixlet_o
+        if not self._exists_child_elem('SourceFixlet'):
+            self._create_child_elem('SourceFixlet')
+        self._source_fixlet_o = BESActionSourceFixlet(self._get_child_elem('SourceFixlet'))
+        return self._source_fixlet_o
+
+
 
 
 
@@ -2155,8 +2289,8 @@ class Client(object):
         req = self._build_base_request(resource)
 
         o = urlopen(req, **self._urlopen_kwargs)
-        if o.code != 200:
-            raise ValueError('Exit code different than 200')
+        if o.code not in (200, 201):
+            raise ValueError('Exit code: {0}'.format(o.code))
         else:
             contents = o.read()
             if raw_response:
@@ -2176,8 +2310,8 @@ class Client(object):
             req.add_data(data)
 
         o = urlopen(req, **self._urlopen_kwargs)
-        if o.code != 200:
-            raise ValueError('Exit code different than 200')
+        if o.code not in (200, 201):
+            raise ValueError('Exit code: {0}'.format(o.code))
         else:
             contents = o.read()
             if raw_response:
@@ -2198,8 +2332,8 @@ class Client(object):
         req.get_method = lambda: 'PUT'
 
         o = urlopen(req, **self._urlopen_kwargs)
-        if o.code != 200:
-            raise ValueError('Exit code different than 200')
+        if o.code not in (200, 201):
+            raise ValueError('Exit code: {0}'.format(o.code))
         else:
             contents = o.read()
             if raw_response:
@@ -2216,8 +2350,8 @@ class Client(object):
         req.get_method = lambda: 'DELETE'
 
         o = urlopen(req, **self._urlopen_kwargs)
-        if o.code != 200:
-            raise ValueError('Exit code different than 200')
+        if o.code not in (200, 201):
+            raise ValueError('Exit code: {0}'.format(o.code))
         else:
             contents = o.read()
             if raw_response:
