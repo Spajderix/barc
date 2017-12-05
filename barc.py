@@ -1926,13 +1926,16 @@ class APIComputer(BESAPICoreElement):
                     return datetime.strptime(elem.childNodes[0].nodeValue, date_format)
                 except ValueError as e:
                     # python2.7 in some versions seem to not understand time zone modifiers in time zone, hence:
-                    return datetime.strptime(elem.childNodes[0].nodeValue[:-6], date_format_notz)
+                    if len(elem.childNodes[0].nodeValue) == 31:
+                        return datetime.strptime(elem.childNodes[0].nodeValue[:-6], date_format_notz)
+                    else:
+                        return datetime.strptime(elem.childNodes[0].nodeValue, date_format_notz)
     @LastReportTime.setter
     def LastReportTime(self, newval):
         for elem in self.base_node.childNodes:
             if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'LastReportTime':
                 try:
-                    elem.childNodes[0].nodeValue = datetime.strftime(newval, date_format)
+                    elem.childNodes[0].nodeValue = datetime.strftime(newval, date_format).strip()
                 except ValueError as e:
                     # once more, for the tz issue
                     elem.childNodes[0].nodeValue = '{0} +0000'.format(datetime.strftime(newval, date_format_notz))
@@ -2192,6 +2195,8 @@ class BESContainer(CoreContainer):
                     self.elements.append(Task(elem))
                 elif elem.nodeName == 'Property':
                     self.elements.append(Property(elem))
+                elif elem.nodeName == 'SingleAction':
+                    self.elements.append(SingleAction(elem))
                 else:
                     self.elements.append(BESCoreElement(elem))
 
