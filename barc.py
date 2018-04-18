@@ -2077,6 +2077,56 @@ class APIAction(APIGenericContent):
 
 
 
+class APIQuery(BESAPICoreElement):
+    @property
+    def Error(self):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'Error':
+                return elem.childNodes[0].nodeValue
+        return None
+
+    @property
+    def EvaluationTime(self):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'Evaluation':
+                #find the evaluation time node
+                for subelem in elem.childNodes:
+                    if subelem.nodeType == Node.ELEMENT_NODE and subelem.nodeName == 'Time':
+                        return subelem.childNodes[0].nodeValue
+        return None
+
+    @property
+    def EvaluationPlurality(self):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'Evaluation':
+                #find the evaluation time node
+                for subelem in elem.childNodes:
+                    if subelem.nodeType == Node.ELEMENT_NODE and subelem.nodeName == 'Plurality':
+                        return subelem.childNodes[0].nodeValue
+        return None
+
+    def _parse_result_element(self, element):
+        if element.nodeName == 'Answer':
+            return element.childNodes[0].nodeValue
+        elif element.nodeName == 'Tuple':
+            res = []
+            for sube in element.childNodes:
+                if sube.nodeType == Node.ELEMENT_NODE and sube.nodeName in ('Answer', 'Tuple'):
+                    res.append(self._parse_result_element(sube))
+            return res
+        else:
+            return None
+
+    @property
+    def Result(self):
+        res = []
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'Result':
+                for subelem in elem.childNodes:
+                    if subelem.nodeType == Node.ELEMENT_NODE and subelem.nodeName in ('Answer', 'Tuple'):
+                        res.append(self._parse_result_element(subelem))
+        return res
+
 
 
 
@@ -2233,6 +2283,8 @@ class BESAPIContainer(CoreContainer):
                     self.elements.append(APIAction(elem))
                 elif elem.nodeName == 'Property':
                     self.elements.append(APIProperty(elem))
+                elif elem.nodeName == 'Query':
+                    self.elements.append(APIQuery(elem))
                 else:
                     self.elements.append(BESAPICoreElement(elem))
 
