@@ -78,6 +78,30 @@ class BESCoreElement(object):
             else:
                 self.base_node.appendChild(new_node)
 
+    def _create_child_elem_with_attributes(self, ename, attr_name, attr_value, simple_elem = True):
+        findex = None
+        for x in xrange(len(self._field_order)):
+            if self._field_order[x] == ename:
+                findex = x
+                break
+        if findex == None:
+            raise NotImplementedError('Not sure if this is going to ever work')
+        else:
+            # now create new node
+            new_node = self.base_node.ownerDocument.createElement(ename)
+            tmp = new_node.setAttribute(attr_name, attr_value)
+            if simple_elem:
+                new_node.appendChild(self.base_node.ownerDocument.createTextNode(''))
+            putbeforeme = None
+            for elem in self.base_node.childNodes:
+                if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName not in self._field_order[:findex]:
+                    putbeforeme = elem
+                    break
+            if putbeforeme != None:
+                self.base_node.insertBefore(new_node, putbeforeme)
+            else:
+                self.base_node.appendChild(new_node)
+
     def _get_child_elem(self, ename):
         for elem in self.base_node.childNodes:
             if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == ename:
@@ -929,6 +953,46 @@ class ActionSettings(BESCoreElement):
         self._set_newvalue_for_elem('ReapplyInterval', newvalue)
 
     @property
+    def HasRetry(self):
+        if not self._exists_child_elem('HasRetry'):
+            return None
+        return self._str2bool(self._value_for_elem('HasRetry'))
+    @Reapply.setter
+    def HasRetry(self, newvalue):
+        if newvalue not in (True, False):
+            raise ValueError('Reapply only accept true or false')
+        if not self._exists_child_elem('HasRetry'):
+            self._create_child_elem('HasRetry')
+        self._set_newvalue_for_elem('HasRetry', self._bool2str(newvalue))
+
+    @property
+    def RetryCount(self):
+        if not self._exists_child_elem('RetryCount'):
+            return None
+        return self._value_for_elem('RetryCount')
+    @Reapply.setter
+    def RetryCount(self, newvalue):
+        try:
+            tmp = int(newvalue)
+        except ValueError as e:
+            raise ValueError('RetryCount has to be positive integer')
+        if not self._exists_child_elem('RetryCount'):
+            self._create_child_elem('RetryCount')
+        self._set_newvalue_for_elem('RetryCount', str(newvalue))
+
+
+    @property
+    def RetryWait(self):
+        return self._value_for_elem('RetryWait')
+    @StartDateTimeOffset.setter
+    def RetryWait(self, newvalue):
+        if newvalue not in ("PT15M", "PT30M", "PT1H", "PT2H", "PT4H", "PT6H", "PT8H", "PT12H", "P1D", "P2D", "P3D", "P5D", "P7D", "P15D", "P30D"):
+            raise ValueError('ReapplyInterval can only be one of the following: PT15M, PT30M, PT1H, PT2H, PT4H, PT6H, PT8H, PT12H, P1D, P2D, P3D, P5D, P7D, P15D, P30D')
+        if not self._exists_child_elem('RetryWait'):
+            self._create_child_elem_with_attributes('RetryWait', 'Behavior', 'WaitForInterval')
+            self._set_newvalue_for_elem('RetryWait', newvalue)
+                
+    @property
     def HasTemporalDistribution(self):
         if not self._exists_child_elem('HasTemporalDistribution'):
             return None
@@ -1115,6 +1179,8 @@ class FixletAction(BESCoreElement, ActionScriptProperty, SuccessCriteriaProperty
             self._create_child_elem('Settings')
         self._settings_o = ActionSettings(self._get_child_elem('Settings'))
         return self._settings_o
+
+
 class FixletDefaultAction(FixletAction):
     def __init__(self, *args, **kwargs):
         self._base_node_name = 'DefaultAction'
@@ -2421,3 +2487,5 @@ class Client(object):
                 return True
             else:
                 return contents
+
+
