@@ -54,13 +54,12 @@ class BESCoreElement(object):
             if elem.nodeName == ename:
                 return True
         return False
-    
+
     def _exists_child_elem_attr(self, ename, attr_name):
-        for elem in self.base_node.childNodes:
-            if elem.nodeName == ename:
-                if elem.hasAttribute(attr_name):
-                    return True        
-        return False
+        enode = self._get_child_elem(ename)
+        if enode is None:
+            return False
+        return enode.hasAttribute(attr_name)
 
     def _create_child_elem(self, ename, simple_elem = True):
         findex = None
@@ -82,23 +81,16 @@ class BESCoreElement(object):
                     break
             if putbeforeme != None:
                 self.base_node.insertBefore(new_node, putbeforeme)
-                
             else:
                 self.base_node.appendChild(new_node)
             return new_node
-                          
-    def _create_child_elem_with_attributes(self, ename, attr_name, attr_value, simple_elem = True):
+
+    def _create_child_elem_with_attributes(self, ename, attrs={}, simple_elem = True):
         new_node = self._create_child_elem(ename, simple_elem)
-        tmp = new_node.setAttribute(attr_name, attr_value)
-        #return new_node
-    
-    def _create_child_elem_with_multiple_attributes(self, ename, simple_elem = True, **attributes):
-        new_node = self._create_child_elem(ename, simple_elem)
-        for attr in xrange(len(attributes)):
-            attr_name = attributes.keys()[attr]
-            attr_value = attributes.values()[attr]
-            tmp = new_node.setAttribute(attr_name, attr_value)
-    
+        for k,v in attrs.iteritems():
+            tmp = new_node.setAttribute(k, v)
+        return new_node
+
     def _get_child_elem(self, ename):
         for elem in self.base_node.childNodes:
             if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == ename:
@@ -114,14 +106,13 @@ class BESCoreElement(object):
                     return u''
         return None
 
-    def _value_for_attr(self, attr_name):
-        for elem in self.base_node.childNodes:
-            if elem.nodeType == Node.ELEMENT_NODE and elem.hasAttribute == attr_name:
-                try:
-                    return elem.childNodes[0].getAttribute(attr_name)
-                except IndexError as e:
-                    return u''
-        return None
+    def _value_for_elem_attr(self, ename, attr_name):
+        enode = self._get_child_elem(ename)
+        if enode is None:
+            return None
+        if not enode.hasAttribute(attr_name):
+            return None
+        return enode.getAttribute(attr_name)
 
     def _set_newvalue_for_elem(self, ename, newvalue):
         for elem in self.base_node.childNodes:
@@ -135,11 +126,11 @@ class BESCoreElement(object):
                 elem.childNodes.append(tnode)
 
     def _set_newattr_for_elem(self, ename, attr_name, attr_value):
-        for elem in self.base_node.childNodes:
-            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == ename:
-                if elem.hasAttribute(attr_name) and (elem.getAttribute(attr_name) != attr_value or elem.getAttribute(attr_name) == ''):
-                    tmp = elem.setAttribute(attr_name, attr_value)
-                    
+        enode = self._get_child_elem(ename)
+        if enode is None:
+            return False
+        return enode.setAttribute(attr_name, attr_value)
+
 
     def _bool2str(self, v):
         if v not in (True, False):
@@ -987,14 +978,13 @@ class ActionSettings(BESCoreElement):
     def RetryCount(self, newvalue):
         try:
             tmp = int(newvalue)
-            if tmp <= 0:
-                raise ValueError('RetryCount has to be positive integer') 
         except ValueError as e:
+            raise ValueError('RetryCount has to be integer type')
+        if tmp <= 0:
             raise ValueError('RetryCount has to be positive integer')
         if not self._exists_child_elem('RetryCount'):
             self._create_child_elem('RetryCount')
         self._set_newvalue_for_elem('RetryCount', str(newvalue))
-
 
     @property
     def RetryWait(self):
@@ -1004,23 +994,21 @@ class ActionSettings(BESCoreElement):
         if newvalue not in ("PT15M", "PT30M", "PT1H", "PT2H", "PT4H", "PT6H", "PT8H", "PT12H", "P1D", "P2D", "P3D", "P5D", "P7D", "P15D", "P30D"):
             raise ValueError('ReapplyInterval can only be one of the following: PT15M, PT30M, PT1H, PT2H, PT4H, PT6H, PT8H, PT12H, P1D, P2D, P3D, P5D, P7D, P15D, P30D')
         if not self._exists_child_elem('RetryWait'):
-            self._create_child_elem_with_attributes('RetryWait', 'Behavior', 'WaitForInterval')
-            self._set_newvalue_for_elem('RetryWait', 'PT1H')
-        elif self._exists_child_elem('RetryWait'):
-            self._set_newvalue_for_elem('RetryWait', newvalue)
+            self._create_child_elem_with_attributes('RetryWait', {'Behavior': 'WaitForInterval'})
+        self._set_newvalue_for_elem('RetryWait', newvalue)
 
     @property
     def RetryWaitBehavior(self):
-        return self._value_for_attr('Behavior')
+        return self._value_for_elem_attr('RetryWait', 'Behavior')
     @RetryWaitBehavior.setter
     def RetryWaitBehavior(self, newvalue):
         if newvalue not in ("WaitForInterval","WaitForReboot"):
             raise ValueError('RetryWaitBehavior can be only WaitForInterval or WaitForReboot')
+        if self.RetryWait is None:
+            self.RetryWait = 'PT1H'
         if newvalue == 'WaitForReboot':
-            self._set_newattr_for_elem('RetryWait','Behavior',  newvalue)
-            self._set_newvalue_for_elem('RetryWait', 'PT1H')
-        elif newvalue == 'WaitForInterval':
-            self._set_newattr_for_elem('RetryWait','Behavior',  newvalue)
+            self.RetryWait = 'PT1H'
+        self._set_newattr_for_elem('RetryWait','Behavior',  newvalue)
 
     @property
     def HasTemporalDistribution(self):
