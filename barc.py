@@ -16,7 +16,7 @@
 #
 from urllib import quote, urlencode
 from urllib2 import Request, urlopen
-import ssl
+import ssl, code
 from base64 import b64encode
 from xml.dom.minidom import parseString, parse, getDOMImplementation, Node
 from datetime import datetime
@@ -2443,12 +2443,17 @@ class Client(object):
             else:
                 raise ValueError('Not BESAPI nor BES xml element found')
 
-    def post(self, resource, data, raw_response=False):
-        req = self._build_base_request(resource)
-        if isinstance(data, BESContainer) or isinstance(data, BESAPIContainer):
-            req.add_data(data.base_node.toxml())
-        else:
-            req.add_data(data)
+    def post(self, resource, data=None, raw_response=False):
+        if data is None:
+            req = self._build_base_request(resource)
+            req.get_method = lambda: 'POST'
+            raw_response = True
+        elif data is not None:
+            req = self._build_base_request(resource)
+            if isinstance(data, BESContainer) or isinstance(data, BESAPIContainer):
+                req.add_data(data.base_node.toxml())
+            else:
+                req.add_data(data)
 
         o = urlopen(req, **self._urlopen_kwargs)
         if o.code not in (200, 201):
@@ -2464,12 +2469,15 @@ class Client(object):
             else:
                 raise ValueError('Not BESAPI nor BES xml element found')
 
-    def put(self, resource, data, raw_response=False):
-        req = self._build_base_request(resource)
-        if isinstance(data, BESContainer) or isinstance(data, BESAPIContainer):
-            req.add_data(data.base_node.toxml())
-        else:
-            req.add_data(data)
+    def put(self, resource, data=None, raw_response=False):
+        if data is None:
+            req = self._build_base_request(resource)
+            raw_response = True
+        elif data is not None:
+            if isinstance(data, BESContainer) or isinstance(data, BESAPIContainer):
+                req.add_data(data.base_node.toxml())
+            else:
+                req.add_data(data)
         req.get_method = lambda: 'PUT'
 
         o = urlopen(req, **self._urlopen_kwargs)
