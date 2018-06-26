@@ -27,6 +27,8 @@ date_format = r'%a, %d %b %Y %H:%M:%S %z'
 date_format_notz = r'%a, %d %b %Y %H:%M:%S'
 simple_datetime_format = r'%Y-%m-%d %H:%M:%S'
 
+search_by_property_relevance = 'exists ({0}) whose (it as string as lowercase {1} "{2}" as lowercase)'
+
 
 class BESCoreElement(object):
     __slots__ = ('base_node', '_base_node_name', '_field_order')
@@ -395,6 +397,295 @@ class MIMEField(BESCoreElement):
         if not self._exists_child_elem('Value'):
             self._create_child_elem('Value')
         self._set_newvalue_for_elem('Value', newvalue)
+
+class ComputerGroup(BESCoreElement):
+    def __init__(self, *args, **kwargs):
+        self._base_node_name = 'ComputerGroup'
+        super(ComputerGroup, self).__init__(*args, **kwargs)
+        self._field_order = ('Title', 'Domain', 'JoinByIntersection', 'IsDynamic', 'EvaluateOnClient', 'SearchComponentRelevance', 'SearchComponentPropertyReference', 'SearchComponentGroupReference')
+    def _create_empty_element(self, *args, **kwargs):
+        super(ComputerGroup, self)._create_empty_element(*args, **kwargs)
+        title_node = self.base_node.ownerDocument.createElement('Title')
+        title_node.appendChild(self.base_node.ownerDocument.createTextNode(''))
+        jbi_node = self.base_node.ownerDocument.createElement('JoinByIntersection')
+        jbi_node.appendChild(self.base_node.ownerDocument.createTextNode('false'))
+        self.base_node.appendChild(title_node)
+        self.base_node.appendChild(jbi_node)
+
+    @property
+    def Title(self):
+        return self._value_for_elem('Title')
+    @Title.setter
+    def Title(self, newvalue):
+        if len(newvalue) < 1 or len(newvalue) > 255:
+            raise ValueError('Title can be between 1 and 255 characters long')
+        if not self._exists_child_elem('Title'):
+            self._create_child_elem('Title')
+        self._set_newvalue_for_elem('Title', newvalue)
+
+    @property
+    def Domain(self):
+        return self._value_for_elem('Domain')
+    @Domain.setter
+    def Domain(self, newvalue):
+        if type(newvalue) not in (str, unicode):
+            raise TypeError('Needs to be string or unicode')
+        if len(newvalue) != 4:
+            raise ValueError('Domain needs to be exactly 4 characters long')
+        if not self._exists_child_elem('Domain'):
+            self._create_child_elem('Domain')
+        self._set_newvalue_for_elem('Domain', newvalue)
+
+    @property
+    def JoinByIntersection(self):
+        return self._value_for_elem('JoinByIntersection')
+    @JoinByIntersection.setter
+    def JoinByIntersection(self, newvalue):
+        if newvalue not in ('True', 'TRUE', 'true', 'False', 'FALSE', 'false'):
+            raise ValueError('JoinByIntersection can only be "true" or "false"')
+        if newvalue in ('true', 'TRUE', 'True'):
+            newvalue = 'true'
+        elif newvalue in ('false', 'FALSE', 'False'):
+            newvalue = 'false'
+        if not self._exists_child_elem('JoinByIntersection'):
+            self._create_child_elem('JoinByIntersection')
+        self._set_newvalue_for_elem('JoinByIntersection', newvalue)
+
+    @property
+    def IsDynamic(self):
+        return self._value_for_elem('IsDynamic')
+    @IsDynamic.setter
+    def IsDynamic(self, newvalue):
+        if newvalue not in ('True', 'TRUE', 'true', 'False', 'FALSE', 'false'):
+            raise ValueError('IsDynamic can only be "true" or "false"')
+        if newvalue in ('true', 'TRUE', 'True'):
+            newvalue = 'true'
+        elif newvalue in ('false', 'FALSE', 'False'):
+            newvalue = 'false'
+        if not self._exists_child_elem('IsDynamic'):
+            self._create_child_elem('IsDynamic')
+        self._set_newvalue_for_elem('IsDynamic', newvalue)
+
+    @property
+    def EvaluateOnClient(self):
+        return self._value_for_elem('EvaluateOnClient')
+    @EvaluateOnClient.setter
+    def EvaluateOnClient(self, newvalue):
+        if newvalue not in ('True', 'TRUE', 'true', 'False', 'FALSE', 'false'):
+            raise ValueError('EvaluateOnClient can only be "true" or "false"')
+        if newvalue in ('true', 'TRUE', 'True'):
+            newvalue = 'true'
+        elif newvalue in ('false', 'FALSE', 'False'):
+            newvalue = 'false'
+        if not self._exists_child_elem('EvaluateOnClient'):
+            self._create_child_elem('EvaluateOnClient')
+        self._set_newvalue_for_elem('EvaluateOnClient', newvalue)
+
+    @property
+    def MatchCondition(self):
+        if self.JoinByIntersection == 'true':
+            return 'all'
+        return 'any'
+    @MatchCondition.setter
+    def MatchCondition(self, newvalue):
+        if newvalue not in ('any', 'all'):
+            raise ValueError('MatchCondition can only be "any" or "all"')
+        if newvalue == 'any':
+            self.JoinByIntersection = 'false'
+        elif newvalue == 'all':
+            self.JoinByIntersection = 'true'
+
+
+    def _delete_subscriptionlist(self):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE:
+                if elem.nodeName in ('SearchComponentRelevance', 'SearchComponentGroupReference', 'SearchComponentPropertyReference'):
+                    self.base_node.removeChild(elem)
+
+    def _parse_relevance_node(self, rel_node):
+        comp = rel_node.getAttribute('Comparison')
+        rel = ''
+        for elem in rel_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'Relevance':
+                try:
+                    rel = elem.childNodes[0].nodeValue
+                except IndexError as e:
+                    rel = ''
+                break
+        return {
+            'type': 'relevance',
+            'comparison': comp,
+            'relevance': rel
+        }
+
+    def _parse_computergroup_node(self, cg_node):
+        gr_name = cg_node.getAttribute('GroupName')
+        comp = cg_node.getAttribute('Comparison')
+        return {
+            'type': 'computer_group',
+            'comparison': comp,
+            'group_name': gr_name
+        }
+
+    def _parse_property_node(self, prop_node):
+        comp = prop_node.getAttribute('Comparison')
+        prop_name = prop_node.getAttribute('PropertyName')
+        search_text = ''
+        rel = ''
+        for elem in prop_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE:
+                if elem.nodeName == 'SearchText':
+                    try:
+                        search_text = elem.childNodes[0].nodeValue
+                    except KeyError as e:
+                        pass
+                elif elem.nodeName == 'Relevance':
+                    try:
+                        rel = elem.childNodes[0].nodeValue
+                    except KeyError as e:
+                        pass
+        return {
+            'type': 'property',
+            'search_text': search_text,
+            'relevance': rel,
+            'property_name': prop_name,
+            'comparison': comp
+        }
+
+    def _insert_relevance_node(self, definition):
+        if not definition.has_key('comparison'):
+            raise ValueError('Required component "comparison" missing for relevance based subscription definition')
+        elif not definition.has_key('relevance'):
+            raise ValueError('Required component "relevance" missing for relevance based subscription definition')
+        elif definition['comparison'] not in ('IsTrue', 'IsFalse'):
+            raise ValueError('Comparison for relevance based subscription can only be "IsTrue" or "IsFalse"')
+        main_node = self.base_node.ownerDocument.createElement('SearchComponentRelevance')
+        main_node.setAttribute('Comparison', definition['comparison'])
+        rel_node = main_node.ownerDocument.createElement('Relevance')
+        rel_node.appendChild(rel_node.ownerDocument.createTextNode(definition['relevance']))
+        main_node.appendChild(rel_node)
+        self.base_node.appendChild(main_node)
+        return True
+
+    def _insert_computergroup_node(self, definition):
+        if not definition.has_key('comparison'):
+            raise ValueError('Required component "comparison" missing for computer group based subscription definition')
+        elif not definition.has_key('group_name'):
+            raise ValueError('Required component "group_name" missing for computer group based subscription definition')
+        elif definition['comparison'] not in ('IsMember', 'IsNotMember'):
+            raise ValueError('Comparison for computer group based subscription can only be "IsMember" or "IsNotMember"')
+        main_node = self.base_node.ownerDocument.createElement('SearchComponentGroupReference')
+        main_node.setAttribute('Comparison', definition['comparison'])
+        main_node.setAttribute('GroupName', definition['group_name'])
+        self.base_node.appendChild(main_node)
+        return True
+
+    def _insert_property_node(self, definition):
+        if not definition.has_key('comparison'):
+            raise ValueError('Required component "comparison" missing for property based subscription definition')
+        elif not definition.has_key('relevance'):
+            raise ValueError('Required component "relevance" missing for property based subscription definition')
+        elif not definition.has_key('search_text'):
+            raise ValueError('Required component "search_text" missing for property based subscription definition')
+        elif not definition.has_key('property_name'):
+            raise ValueError('Required component "property_name" missing for property based subscription definition')
+        elif definition['comparison'] not in ('Contains', 'DoesNotContain', 'Equals', 'DoesNotEqual'):
+            raise ValueError('Comparison for computer group based subscription can only be "Contains", "DoesNotContain", "Equals", "DoesNotEqual"')
+
+        main_node = self.base_node.ownerDocument.createElement('SearchComponentPropertyReference')
+        main_node.setAttribute('Comparison', definition['comparison'])
+        main_node.setAttribute('PropertyName', definition['property_name'])
+
+        rel_node = main_node.ownerDocument.createElement('Relevance')
+        rel_node.appendChild(rel_node.ownerDocument.createTextNode(definition['relevance']))
+        st_node = main_node.ownerDocument.createElement('SearchText')
+        st_node.appendChild(st_node.ownerDocument.createTextNode(definition['search_text']))
+
+        main_node.appendChild(st_node)
+        main_node.appendChild(rel_node)
+        self.base_node.appendChild(main_node)
+        return True
+
+    @property
+    def SubscriptionList(self):
+        out = []
+        for subs_elem in self.base_node.childNodes:
+            if subs_elem.nodeType == Node.ELEMENT_NODE:
+                if subs_elem.nodeName == 'SearchComponentRelevance':
+                    out.append(self._parse_relevance_node(subs_elem))
+                elif subs_elem.nodeName == 'SearchComponentGroupReference':
+                    out.append(self._parse_computergroup_node(subs_elem))
+                elif subs_elem.nodeName == 'SearchComponentPropertyReference':
+                    out.append(self._parse_property_node(subs_elem))
+        return out
+    @SubscriptionList.setter
+    def SubscriptionList(self, newvalue):
+        if type(newvalue) not in (list, tuple):
+            raise ValueError('SubscriptionList can only be a list or tuple')
+        for elem in newvalue:
+            if type(elem) is not dict:
+                raise ValueError('SubscriptionList components must be dict')
+        # need to clear out current subscription list before loading up new one
+        self._delete_subscriptionlist()
+        # now to adding each custom subscription into the xml
+        for elem in newvalue:
+            t = elem.get('type', None)
+            if t == 'property':
+                self._insert_property_node(elem)
+            elif t == 'relevance':
+                self._insert_relevance_node(elem)
+            elif t == 'computer_group':
+                self._insert_computergroup_node(elem)
+            elif t is None:
+                raise ValueError('Component has to have a type!')
+            else:
+                raise ValueError('Component type can be one of the following: "property", "relevance", "computer_group"')
+
+    def appendProperty(self, property_elem, search_text, comparison = 'Contains', relevance_string=None):
+        if isinstance(property_elem, Property):
+            prop_name = property_elem.Name
+            relevance_string = property_elem.Relevance
+        else:
+            prop_name = property_elem
+
+        if comparison == 'Contains':
+            comparison_rel = 'contains'
+        elif comparison == 'DoesNotContain':
+            comparison_rel = 'does not contain'
+        elif comparison == 'Equals':
+            comparison_rel = '='
+        elif comparison == 'DoesNotEqual':
+            comparison_rel = '!='
+        else:
+            comparison_rel = ''
+
+        relevance_compiled = search_by_property_relevance.format(relevance_string, comparison_rel, search_text)
+        return self._insert_property_node({'property_name': prop_name, 'comparison': comparison, 'search_text': search_text, 'relevance': relevance_compiled})
+
+    def appendRelevance(self, relevance_string, comparison = 'IsTrue'):
+        return self._insert_relevance_node({'relevance': relevance_string, 'comparison': comparison})
+
+    def appendComputerGroup(self, computer_group, comparison='IsMember'):
+        return self._insert_computergroup_node({'comparison': comparison, 'group_name': computer_group})
+
+    def removeSubscription(self, x):
+        try:
+            x = int(x)
+        except ValueError as e:
+            raise ValueError('A positive integer must be provided')
+        if x < 0:
+            raise ValueError('A positive integer must be provided')
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName in ('SearchComponentRelevance', 'SearchComponentGroupReference', 'SearchComponentPropertyReference'):
+                if x == 0:
+                    cg_node.removeChild(elem)
+                    return True
+                x = x - 1
+        raise ValueError('Subscription component index out of range')
+
+
+
+
 
 class BaseFixlet(BESCoreElement, MIMEFieldProperty, RelevanceProperty):
     def __init__(self, *args, **kwargs):
@@ -1525,10 +1816,29 @@ class SiteSubscription(BESCoreElement):
             else:
                 raise ValueError('Component type can be one of the following: "property", "relevance", "computer_group"')
 
-    def appendProperty(self, property_elem, comparison = 'Contains', search_text=None, relevance_string=None):
+    def appendProperty(self, property_elem, search_text, comparison = 'Contains', relevance_string=None):
         if self.Mode != 'Custom':
             self.Mode = 'Custom'
-        return self._insert_property_node({'property_name': property_elem, 'comparison': comparison, 'search_text': search_text, 'relevance': relevance_string})
+
+        if isinstance(property_elem, Property):
+            prop_name = property_elem.Name
+            relevance_string = property_elem.Relevance
+        else:
+            prop_name = property_elem
+
+        if comparison == 'Contains':
+            comparison_rel = 'contains'
+        elif comparison == 'DoesNotContain':
+            comparison_rel = 'does not contain'
+        elif comparison == 'Equals':
+            comparison_rel = '='
+        elif comparison == 'DoesNotEqual':
+            comparison_rel = '!='
+        else:
+            comparison_rel = ''
+
+        relevance_compiled = search_by_property_relevance.format(relevance_string, comparison_rel, search_text)
+        return self._insert_property_node({'property_name': prop_name, 'comparison': comparison, 'search_text': search_text, 'relevance': relevance_compiled})
 
     def appendRelevance(self, relevance_string, comparison = 'IsTrue'):
         if self.Mode != 'Custom':
@@ -1538,7 +1848,13 @@ class SiteSubscription(BESCoreElement):
     def appendComputerGroup(self, computer_group, comparison='IsMember'):
         if self.Mode != 'Custom':
             self.Mode = 'Custom'
-        return self._insert_computergroup_node({'comparison': comparison, 'group_name': computer_group})
+        if isinstance(computer_group, APIComputerGroup):
+            computer_group_name = computer_group.Name
+        elif isinstance(computer_group, ComputerGroup):
+            computer_group_name = computer_group.Title
+        else:
+            computer_group_name = computer_group
+        return self._insert_computergroup_node({'comparison': comparison, 'group_name': computer_group_name})
 
     def remove(self, x):
         try:
@@ -1584,7 +1900,7 @@ class SiteSubscription(BESCoreElement):
     @MatchCondition.setter
     def MatchCondition(self, newvalue):
         if self.Mode != 'Custom':
-            raise ValueError('Match condition can only be set if subscription mode is Custom')
+            raise ValueError('MatchCondition can only be set if subscription mode is Custom')
         elif newvalue not in ('any', 'all'):
             raise ValueError('MatchCondition can only be "any" or "all"')
         if newvalue == 'all':
@@ -2238,6 +2554,36 @@ class APIComputer(BESAPICoreElement):
                     elem.childNodes[0].nodeValue = '{0} +0000'.format(datetime.strftime(newval, date_format_notz))
 
 
+class APIComputerGroup(BESAPICoreElement):
+    @property
+    def ID(self):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'ID':
+                return elem.childNodes[0].nodeValue
+    @ID.setter
+    def ID(self, newvalue):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'ID':
+                elem.childNodes[0].nodeValue = newvalue
+
+    @property
+    def Name(self):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'Name':
+                return elem.childNodes[0].nodeValue
+    @Name.setter
+    def Name(self, newvalue):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'Name':
+                elem.childNodes[0].nodeValue = newvalue
+
+    @property
+    def LastModified(self):
+        return self.base_node.getAttirbute('LastModified')
+    @LastModified.setter
+    def LastModified(self, newvalue):
+        self.base_node.setAttribute('LastModified', newvalue)
+
 
 
 
@@ -2544,6 +2890,8 @@ class BESContainer(CoreContainer):
                     self.elements.append(Property(elem))
                 elif elem.nodeName == 'SingleAction':
                     self.elements.append(SingleAction(elem))
+                elif elem.nodeName == 'ComputerGroup':
+                    self.elements.append(ComputerGroup(elem))
                 else:
                     self.elements.append(BESCoreElement(elem))
 
@@ -2582,6 +2930,8 @@ class BESAPIContainer(CoreContainer):
                     self.elements.append(APIProperty(elem))
                 elif elem.nodeName == 'Query':
                     self.elements.append(APIQuery(elem))
+                elif elem.nodeName == 'ComputerGroup':
+                    self.elements.append(APIComputerGroup(elem))
                 else:
                     self.elements.append(BESAPICoreElement(elem))
 
