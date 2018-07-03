@@ -1791,7 +1791,7 @@ class SiteSubscription(BESCoreElement):
                     out.append(self._parse_computergroup_node(subs_elem))
                 elif subs_elem.nodeName == 'SearchComponentPropertyReference':
                     out.append(self._parse_property_node(subs_elem))
-        return out
+        return tuple(out)
     @SubscriptionList.setter
     def SubscriptionList(self, newvalue):
         if type(newvalue) not in (list, tuple):
@@ -2463,6 +2463,505 @@ class SingleAction(BESCoreElement, ActionScriptProperty, SuccessCriteriaProperty
 
 
 #### BESAPI Elements ####
+class OperatorComputerAssignments(BESCoreElement):
+    def __init__(self, *args, **kwargs):
+        self._base_node_name = 'ComputerAssignments'
+        super(OperatorComputerAssignments, self).__init__(*args, **kwargs)
+        self._field_order = ('AllComputers', 'ByActiveDirectory', 'ByRetrievedProperties', 'ByGroup')
+
+    @property
+    def AllComputers(self):
+        if self._exists_child_elem('AllComputers'):
+            return True
+        return False
+    @AllComputers.setter
+    def AllComputers(self, newvalue):
+        if newvalue not in (True, False):
+            raise ValueError('AllComputers can only accept boolean True or False')
+        if newvalue and not self._exists_child_elem('AllComputers'):
+            # first remove all existing assignment children
+            while len(self.base_node.childNodes) > 0:
+                self.base_node.removeChild(self.base_node.childNodes[0])
+            self._create_child_elem('AllComputers', simple_elem=False)
+        elif not newvalue and self._exists_child_elem('AllComputers'):
+            n = self._get_child_elem('AllComputers')
+            self.base_node.removeChild(n)
+
+    def _parse_bygroup_node(self, cg_node):
+        gr_name = cg_node.getAttribute('Name')
+        gr_resource = cg_node.getAttribute('Resource')
+        gr_type = cg_node.getAttribute('Type')
+
+        return {
+            'type': 'computer_group',
+            'group_name': gr_name,
+            'group_resource': gr_resource,
+            'group_type': gr_type
+        }
+
+    def _parse_byproperty_node(self, prop_node):
+        for sub_n in prop_node.childNodes:
+            if sub_n.nodeType == Node.ELEMENT_NODE:
+                if sub_n.nodeName == 'Property':
+                    p_node = sub_n
+                elif sub_n.nodeName == 'Relevance':
+                    r_node = sub_n
+        prop_name = p_node.getAttribute('Name')
+        prop_resource = p_node.getAttribute('Resource')
+        for sub_n in p_node.childNodes:
+            if sub_n.nodeType == Node.ELEMENT_NODE and sub_n.nodeName == 'Value':
+                prop_value = sub_n.childNodes[0].nodeValue
+        prop_relevance = r_node.childNodes[0].nodeValue
+
+        return {
+            'type': 'retrieved_property',
+            'property_name': prop_name,
+            'property_value': prop_value,
+            'property_resource': prop_resource,
+            'property_relevance': prop_relevance
+        }
+
+    def _parse_byad_node(self, ad_node):
+        dn_val = None
+        for elem in ad_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'DistinguishedName':
+                dn_val = elem.childNodes[0].nodeValue
+                break
+        return {
+            'type': 'active_directory',
+            'distinguished_name': dn_val
+        }
+
+    def _insert_bygroup_node(self, definition):
+        if not definition.has_key('group_name'):
+            raise ValueError('Required component "group_name" missing for computer group based assignment definition')
+        elif not definition.has_key('group_resource'):
+            raise ValueError('Required component "group_resource" missing for computer group based assignment definition')
+        elif not definition.has_key('group_type'):
+            raise ValueError('Required component "group_type" missing for computer group based assignment definition')
+        elif definition['group_type'] not in ('Automatic', 'Manual'):
+            raise ValueError('group_type for computer group based assignment can only be "Automatic" or "Manual"')
+
+        cg_node = self.base_node.ownerDocument.createElement('ByGroup')
+        cg_node.setAttribute('Name', definition['group_name'])
+        cg_node.setAttribute('Resource', definition['group_resource'])
+        cg_node.setAttribute('Type', definition['group_type'])
+
+        self.base_node.appendChild(cg_node)
+        return True
+
+    def _insert_byad_node(self, definition):
+        if not definition.has_key('distinguished_name'):
+            raise ValueError('Required component "distinguished_name" missing for AD based assignment definition')
+        main_node = self.base_node.ownerDocument.createElement('ByActiveDirectory')
+        dn_node = main_node.ownerDocument.createElement('DistinguishedName')
+        dn_node.appendChild(dn_node.ownerDocument.createTextNode(definition['distinguished_name']))
+
+        main_node.appendChild(dn_node)
+        self.base_node.appendChild(main_node)
+        return True
+
+    def _insert_byproperty_node(self, definition):
+        if not definition.has_key('property_name'):
+            raise ValueError('Required component "property_name" missing for property based assignment definition')
+        elif not definition.has_key('property_value'):
+            raise ValueError('Required component "property_value" missing for property based assignment definition')
+        elif not definition.has_key('property_resource'):
+            raise ValueError('Required component "property_resource" missing for property based assignment definition')
+        elif not definition.has_key('property_relevance'):
+            raise ValueError('Required component "property_relevance" missing for property based assignment definition')
+
+        main_node = self.base_node.ownerDocument.createElement('ByRetrievedProperties')
+        main_node.setAttribute('Match', 'All')
+
+        prop_node = main_node.ownerDocument.createElement('Property')
+        prop_node.setAttribute('Name', definition['property_name'])
+        prop_node.setAttribute('Resource', definition['property_resource'])
+
+        val_node = main_node.ownerDocument.createElement('Value')
+        val_node.appendChild(main_node.ownerDocument.createTextNode(definition['property_value']))
+
+        rel_node = main_node.ownerDocument.createElement('Relevance')
+        rel_node.appendChild(main_node.ownerDocument.createTextNode(definition['property_relevance']))
+
+        prop_node.appendChild(val_node)
+        main_node.appendChild(prop_node)
+        main_node.appendChild(rel_node)
+        self.base_node.appendChild(main_node)
+        return True
+
+    @property
+    def AssignmentList(self):
+        if self.AllComputers:
+            return None
+        result = []
+        for sub_elem in self.base_node.childNodes:
+            if sub_elem.nodeType == Node.ELEMENT_NODE and sub_elem.nodeName in ('ByActiveDirectory', 'ByRetrievedProperties', 'ByGroup'):
+                if sub_elem.nodeName == 'ByActiveDirectory':
+                    result.append(self._parse_byad_node(sub_elem))
+                elif sub_elem.nodeName == 'ByRetrievedProperties':
+                    result.append(self._parse_byproperty_node(sub_elem))
+                elif sub_elem.nodeName == 'ByGroup':
+                    result.append(self._parse_bygroup_node(sub_elem))
+        return tuple(result)
+    @AssignmentList.setter
+    def AssignmentList(self, newvalue):
+        if type(newvalue) not in (list, tuple):
+            raise ValueError('AssignmentList can only be a list or tuple')
+        for elem in newvalue:
+            if type(elem) is not dict:
+                raise ValueError('AssignmentList components must be dict')
+        # this will make sure that both AllComputers is false and no other nodes exist within ComputerAssignments node
+        self.AllComputers = True
+        self.AllComputers = False
+        # now adding each assignment
+        for elem in newvalue:
+            t = elem.get('type', None)
+            if t == 'computer_group':
+                self._insert_bygroup_node(elem)
+            elif t == 'active_directory':
+                self._insert_byad_node(elem)
+            elif t == 'retrieved_property':
+                self._insert_byproperty_node(elem)
+            elif t is None:
+                raise ValueError('Assignment component has to have a type!')
+            else:
+                raise ValueError('Assignment component can be one of the following: "computer_group", "active_directory", "retrieved_property"')
+
+    def appendComputerGroup(self, computer_group, resource = None, group_type='Automatic'):
+        if self.AllComputers:
+            self.AllComputers = False
+        if isinstance(computer_group, (APIComputerGroup, APIManualComputerGroup)):
+            if isinstance(computer_group, APIComputerGroup):
+                group_type = 'Automatic'
+            else:
+                group_type = 'Manual'
+            group_name = computer_group.Name
+            group_resource = computer_group.Resource
+        else:
+            group_name = computer_group
+            group_resource = resource
+        return self._insert_bygroup_node({
+            'group_name': group_name,
+            'group_resource': group_resource,
+            'group_type': group_type
+        })
+
+    def appendAD(self, dn):
+        if self.AllComputers:
+            self.AllComputers = False
+        return self._insert_byad_node({'distinguished_name': dn})
+
+    def appendProperty(self, property_name, search_text, resource_string, relevance_string):
+        relevance_compiled = search_by_property_relevance.format(relevance_string, '=', search_text)
+
+        return self._insert_byproperty_node({'property_name': property_name, 'property_value': search_text, 'property_resource': resource_string, 'property_relevance': relevance_compiled})
+
+    def remove(self, x):
+        if self.AllComputers:
+            return False
+        try:
+            x = int(x)
+        except ValueError as e:
+            raise ValueError('A positive integer must be provided')
+        if x < 0:
+            raise ValueError('A positive integer must be provided')
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName in ('ByGroup', 'ByRetrievedProperties', 'ByActiveDirectory'):
+                if x == 0:
+                    self.base_node.removeChild(elem)
+                    return True
+                x = x - 1
+        raise ValueError('Assignment component index out of range')
+
+class OperatorInterfaceLogins(BESCoreElement):
+    def __init__(self, *args, **kwargs):
+        self._base_node_name = 'InterfaceLogins'
+        super(OperatorInterfaceLogins, self).__init__(*args, **kwargs)
+        self._field_order = ('Console', 'WebUI', 'API', 'Applications')
+        # following lines of code are a bit of a weird looking hack
+        # to make sure that initial values are created as needed
+        # while still keeping property methods fairly simple
+        # and not having problems with e.g. _str2bool and _bool2str
+        if not self._exists_child_elem('Console'):
+            self.Console = False
+        if not self._exists_child_elem('WebUI'):
+            self.WebUI = False
+        if not self._exists_child_elem('API'):
+            self.API = False
+
+    @property
+    def Console(self):
+        return self._str2bool(self._value_for_elem('Console'))
+    @Console.setter
+    def Console(self, newvalue):
+        if not self._exists_child_elem('Console'):
+            self._create_child_elem('Console')
+        self._set_newvalue_for_elem('Console', self._bool2str(newvalue))
+
+    @property
+    def WebUI(self):
+        return self._str2bool(self._value_for_elem('WebUI'))
+    @WebUI.setter
+    def WebUI(self, newvalue):
+        if not self._exists_child_elem('WebUI'):
+            self._create_child_elem('WebUI')
+        self._set_newvalue_for_elem('WebUI', self._bool2str(newvalue))
+
+    @property
+    def API(self):
+        return self._str2bool(self._value_for_elem('API'))
+    @API.setter
+    def API(self, newvalue):
+        if not self._exists_child_elem('API'):
+            self._create_child_elem('API')
+        self._set_newvalue_for_elem('API', self._bool2str(newvalue))
+
+    @property
+    def Applications(self):
+        app_node = self._get_child_elem('Applications')
+        if app_node is None:
+            return tuple()
+        out = []
+        for elem in app_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'Name':
+                out.append(elem.childNodes[0].nodeValue)
+        return tuple(out)
+    @Applications.setter
+    def Applications(self, newvalue):
+        if type(newvalue) not in [list, tuple]:
+            raise ValueError('Applications value must be a list or tuple of application names')
+        if not self._exists_child_elem('Applications'):
+            app_node = self._create_child_elem('Applications', False)
+        else:
+            app_node = self._get_child_elem('Applications')
+            # need to clear out current values before applying new ones
+            for elem in app_node.childNodes:
+                app_node.removeChild(elem)
+        for elem in newvalue:
+            new_node = app_node.ownerDocument.createElement('Name')
+            new_node.appendChild(app_node.ownerDocument.createTextNode(elem))
+            app_node.appendChild(new_node)
+
+class Operator(BESCoreElement):
+    def __init__(self, *args, **kwargs):
+        self._base_node_name = 'Operator'
+        super(Operator, self).__init__(*args, **kwargs)
+        self._field_order = ('Name', 'ID', 'LastLoginTime', 'Password', 'LDAPServerID', 'LDAPDN', 'MasterOperator', 'CustomContent', 'ShowOtherActions', 'CanCreateActions', 'PostActionBehaviorPrivilege', 'ActionScriptCommandsPrivilege', 'CanLock', 'CanSendMultipleRefresh', 'LoginPermission', 'UnmanagedAssetPrivilege', 'InterfaceLogins', 'ApproverRoleID', 'ComputerAssignments')
+
+    @property
+    def Name(self):
+        return self._value_for_elem('Name')
+    @Name.setter
+    def Name(self, newvalue):
+        if len(newvalue) > 255:
+            raise ValueError('Name can only be 255 characters')
+        if not self._exists_child_elem('Name'):
+            self._create_child_elem('Name')
+        self._set_newvalue_for_elem('Name', newvalue)
+
+    @property
+    def ID(self):
+        return self._value_for_elem('ID')
+    @ID.setter
+    def ID(self, newvalue):
+        try:
+            tmp = int(newvalue)
+        except (ValueError, TypeError) as e:
+            raise ValueError('ID must be a positive integer')
+        if tmp < 0:
+            raise ValueError('ID must be positive integer')
+        if not self._exists_child_elem('ID'):
+            self._create_child_elem('ID')
+        self._set_newvalue_for_elem('ID', newvalue)
+
+    @property
+    def LastLoginTime(self):
+        return self._value_for_elem('LastLoginTime')
+    @LastLoginTime.setter
+    def LastLoginTime(self, newvalue):
+        if not self._exists_child_elem('LastLoginTime'):
+            self._create_child_elem('LastLoginTime')
+        self._set_newvalue_for_elem('LastLoginTime', newvalue)
+
+    @property
+    def Password(self):
+        return self._value_for_elem('Password')
+    @Password.setter
+    def Password(self, newvalue):
+        if not self._exists_child_elem('Password'):
+            self._create_child_elem('Password')
+        self._set_newvalue_for_elem('Password', newvalue)
+
+    @property
+    def LDAPServerID(self):
+        return self._value_for_elem('LDAPServerID')
+    @LDAPServerID.setter
+    def LDAPServerID(self, newvalue):
+        try:
+            tmp = int(newvalue)
+        except (ValueError, TypeError) as e:
+            raise ValueError('LDAPServerID must be a positive integer')
+        if tmp < 0:
+            raise ValueError('LDAPServerID must be positive integer')
+        if not self._exists_child_elem('LDAPServerID'):
+            self._create_child_elem('LDAPServerID')
+        self._set_newvalue_for_elem('LDAPServerID', newvalue)
+
+    @property
+    def LDAPDN(self):
+        return self._value_for_elem('LDAPDN')
+    @LDAPDN.setter
+    def LDAPDN(self, newvalue):
+        if not self._exists_child_elem('LDAPDN'):
+            self._create_child_elem('LDAPDN')
+        self._set_newvalue_for_elem('LDAPDN', newvalue)
+
+    @property
+    def MasterOperator(self):
+        return self._str2bool(self._value_for_elem('MasterOperator'))
+    @MasterOperator.setter
+    def MasterOperator(self, newvalue):
+        if not self._exists_child_elem('MasterOperator'):
+            self._create_child_elem('MasterOperator')
+        self._set_newvalue_for_elem('MasterOperator', self._bool2str(newvalue))
+
+    @property
+    def CustomContent(self):
+        return self._str2bool(self._value_for_elem('CustomContent'))
+    @CustomContent.setter
+    def CustomContent(self, newvalue):
+        if not self._exists_child_elem('CustomContent'):
+            self._create_child_elem('CustomContent')
+        self._set_newvalue_for_elem('CustomContent', self._bool2str(newvalue))
+
+    @property
+    def ShowOtherActions(self):
+        return self._str2bool(self._value_for_elem('ShowOtherActions'))
+    @ShowOtherActions.setter
+    def ShowOtherActions(self, newvalue):
+        if not self._exists_child_elem('ShowOtherActions'):
+            self._create_child_elem('ShowOtherActions')
+        self._set_newvalue_for_elem('ShowOtherActions', self._bool2str(newvalue))
+
+    @property
+    def CanCreateActions(self):
+        return self._str2bool(self._value_for_elem('CanCreateActions'))
+    @CanCreateActions.setter
+    def CanCreateActions(self, newvalue):
+        if not self._exists_child_elem('CanCreateActions'):
+            self._create_child_elem('CanCreateActions')
+        self._set_newvalue_for_elem('CanCreateActions', self._bool2str(newvalue))
+
+    @property
+    def PostActionBehaviorPrivilege(self):
+        return self._str2bool(self._value_for_elem('PostActionBehaviorPrivilege'))
+    @PostActionBehaviorPrivilege.setter
+    def PostActionBehaviorPrivilege(self, newvalue):
+        if newvalue not in ('AllowRestartAndShutdown', 'AllowRestartOnly', 'None'):
+            raise ValueError('PostActionBehaviorPrivilege can be one of "AllowRestartAndShutdown", "AllowRestartOnly", "None"')
+        if not self._exists_child_elem('PostActionBehaviorPrivilege'):
+            self._create_child_elem('PostActionBehaviorPrivilege')
+        self._set_newvalue_for_elem('PostActionBehaviorPrivilege', self._bool2str(newvalue))
+
+    @property
+    def ActionScriptCommandsPrivilege(self):
+        return self._str2bool(self._value_for_elem('ActionScriptCommandsPrivilege'))
+    @ActionScriptCommandsPrivilege.setter
+    def ActionScriptCommandsPrivilege(self, newvalue):
+        if newvalue not in ('AllowRestartAndShutdown', 'AllowRestartOnly', 'None'):
+            raise ValueError('ActionScriptCommandsPrivilege can be one of "AllowRestartAndShutdown", "AllowRestartOnly", "None"')
+        if not self._exists_child_elem('ActionScriptCommandsPrivilege'):
+            self._create_child_elem('ActionScriptCommandsPrivilege')
+        self._set_newvalue_for_elem('ActionScriptCommandsPrivilege', self._bool2str(newvalue))
+
+    @property
+    def CanLock(self):
+        return self._str2bool(self._value_for_elem('CanLock'))
+    @CanLock.setter
+    def CanLock(self, newvalue):
+        if not self._exists_child_elem('CanLock'):
+            self._create_child_elem('CanLock')
+        self._set_newvalue_for_elem('CanLock', self._bool2str(newvalue))
+
+    @property
+    def CanSendMultipleRefresh(self):
+        return self._str2bool(self._value_for_elem('CanSendMultipleRefresh'))
+    @CanSendMultipleRefresh.setter
+    def CanSendMultipleRefresh(self, newvalue):
+        if not self._exists_child_elem('CanSendMultipleRefresh'):
+            self._create_child_elem('CanSendMultipleRefresh')
+        self._set_newvalue_for_elem('CanSendMultipleRefresh', self._bool2str(newvalue))
+
+    @property
+    def LoginPermission(self):
+        return self._str2bool(self._value_for_elem('LoginPermission'))
+    @LoginPermission.setter
+    def LoginPermission(self, newvalue):
+        if newvalue not in ('Unrestricted', 'RoleRestricted', 'Disabled'):
+            raise ValueError('LoginPermission can be one of "Unrestricted", "RoleRestricted", "Disabled"')
+        if not self._exists_child_elem('LoginPermission'):
+            self._create_child_elem('LoginPermission')
+        self._set_newvalue_for_elem('LoginPermission', self._bool2str(newvalue))
+
+    @property
+    def UnmanagedAssetPrivilege(self):
+        return self._str2bool(self._value_for_elem('UnmanagedAssetPrivilege'))
+    @UnmanagedAssetPrivilege.setter
+    def UnmanagedAssetPrivilege(self, newvalue):
+        if newvalue not in ('ShowNone', 'ScanPoint', 'ShowAll'):
+            raise ValueError('UnmanagedAssetPrivilege can be one of "ShowNone", "ScanPoint", "ShowAll"')
+        if not self._exists_child_elem('UnmanagedAssetPrivilege'):
+            self._create_child_elem('UnmanagedAssetPrivilege')
+        self._set_newvalue_for_elem('UnmanagedAssetPrivilege', self._bool2str(newvalue))
+
+    @property
+    def InterfaceLogins(self):
+        if not self._exists_child_elem('InterfaceLogins'):
+            self._create_child_elem('InterfaceLogins', False)
+        try:
+            return self._interface_logins_o
+        except AttributeError as e:
+            self._interface_logins_o = OperatorInterfaceLogins(self._get_child_elem('InterfaceLogins'))
+            return self._interface_logins_o
+
+    @property
+    def ApproverRoleID(self):
+        return self._value_for_elem('ApproverRoleID')
+    @ApproverRoleID.setter
+    def ApproverRoleID(self, newvalue):
+        try:
+            tmp = int(newvalue)
+        except (ValueError, TypeError) as e:
+            raise ValueError('ApproverRoleID must be a positive integer')
+        if tmp < 0:
+            raise ValueError('ApproverRoleID must be positive integer')
+        if not self._exists_child_elem('ApproverRoleID'):
+            self._create_child_elem('ApproverRoleID')
+        self._set_newvalue_for_elem('ApproverRoleID', newvalue)
+
+    @property
+    def ComputerAssignments(self):
+        if not self._exists_child_elem('ComputerAssignments'):
+            self._create_child_elem('ComputerAssignments', False)
+        try:
+            return self._computer_assignments_o
+        except AttributeError as e:
+            self._computer_assignments_o = OperatorComputerAssignments(self._get_child_elem('ComputerAssignments'))
+            return self._computer_assignments_o
+
+
+
+    @property
+    def Resource(self):
+        return self.base_node.getAttribute('Resource')
+    @Resource.setter
+    def Resource(self, newvalue):
+        self.base_node.setAttribute('Resource', newvalue)
+
+
+
+
 class APIComputerProperties(object):
     __slots__ = ('_nodes_list',)
 
@@ -2583,6 +3082,49 @@ class APIComputerGroup(BESAPICoreElement):
     @LastModified.setter
     def LastModified(self, newvalue):
         self.base_node.setAttribute('LastModified', newvalue)
+
+class APIManualComputerGroup(BESAPICoreElement):
+    @property
+    def Name(self):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'Name':
+                return elem.childNodes[0].nodeValue
+    @Name.setter
+    def Name(self, newvalue):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'Name':
+                elem.childNodes[0].nodeValue = newvalue
+
+    @property
+    def EvaluateOnClient(self):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'EvaluateOnClient':
+                return elem.childNodes[0].nodeValue
+    @EvaluateOnClient.setter
+    def EvaluateOnClient(self, newvalue):
+        if newvalue not in ('true', 'false'):
+            raise ValueError('EvaluateOnClient can only be set to "true" or "false"')
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'EvaluateOnClient':
+                elem.childNodes[0].nodeValue = newvalue
+
+    @property
+    def Computers(self):
+        out = []
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'ComputerID':
+                out.append(elem.childNodes[0].nodeValue.strip())
+        return out
+    @Computers.setter
+    def Computers(self, newvalue):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'ComputerID':
+                self.base_node.removeChild(elem)
+        for elem in newvalue:
+            cid_node = self.base_node.ownerDocument.createElement('ComputerID')
+            cid_node.appendChild(self.base_node.ownerDocument.createTextNode(elem))
+            self.base_node.appendChild(cid_node)
+
 
 
 
@@ -2932,6 +3474,10 @@ class BESAPIContainer(CoreContainer):
                     self.elements.append(APIQuery(elem))
                 elif elem.nodeName == 'ComputerGroup':
                     self.elements.append(APIComputerGroup(elem))
+                elif elem.nodeName == 'ManualComputerGroup':
+                    self.elements.append(APIManualComputerGroup(elem))
+                elif elem.nodeName == 'Operator':
+                    self.elements.append(Operator(elem))
                 else:
                     self.elements.append(BESAPICoreElement(elem))
 
