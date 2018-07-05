@@ -141,9 +141,9 @@ class BESCoreElement(object):
             return 'true'
         return 'false'
     def _str2bool(self, v):
-        if v not in ('true', 'false'):
+        if v not in ('true', 'false', '1', '0'):
             raise ValueError('Boolean string representations only')
-        if v == 'true':
+        if v == 'true' or v == '1':
             return True
         return False
 
