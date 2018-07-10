@@ -16,7 +16,7 @@
 #
 from urllib import quote, urlencode
 from urllib2 import Request, urlopen
-import ssl, code
+import ssl
 from base64 import b64encode
 from xml.dom.minidom import parseString, parse, getDOMImplementation, Node
 from datetime import datetime
@@ -1181,7 +1181,7 @@ class ActionSettings(BESCoreElement):
         for elem in dwc_node.childNodes:
             if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName in out.keys():
                 try:
-                    out[ele.nodeName] = self._str2bool(elem.childNodes[0].nodeValue)
+                    out[elem.nodeName] = self._str2bool(elem.childNodes[0].nodeValue)
                 except Exception as e:
                     pass # we just want to skip if we're unable to extract
         return out
