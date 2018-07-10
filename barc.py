@@ -16,7 +16,7 @@
 #
 from urllib import quote, urlencode
 from urllib2 import Request, urlopen
-import ssl, code
+import ssl
 from base64 import b64encode
 from xml.dom.minidom import parseString, parse, getDOMImplementation, Node
 from datetime import datetime
@@ -26,6 +26,7 @@ import re
 date_format = r'%a, %d %b %Y %H:%M:%S %z'
 date_format_notz = r'%a, %d %b %Y %H:%M:%S'
 simple_datetime_format = r'%Y-%m-%d %H:%M:%S'
+simple_time_format = r'%H:%M:%S'
 
 search_by_property_relevance = 'exists ({0}) whose (it as string as lowercase {1} "{2}" as lowercase)'
 
@@ -1149,7 +1150,7 @@ class ActionSettings(BESCoreElement):
             tr_node.removeChild(tr_node.childNodes[0])
         for x in ['StartTime', 'EndTime']:
             sub_n = self.base_node.ownerDocument.createElement(x)
-            sub_n.appendChild(self.base_node.ownerDocument.createTextNode(newvalue[x].strftime(simple_datetime_format)))
+            sub_n.appendChild(self.base_node.ownerDocument.createTextNode(newvalue[x].strftime(simple_time_format)))
             tr_node.appendChild(sub_n)
         if not self.HasTimeRange:
             self.HasTimeRange = True
@@ -1181,7 +1182,7 @@ class ActionSettings(BESCoreElement):
         for elem in dwc_node.childNodes:
             if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName in out.keys():
                 try:
-                    out[ele.nodeName] = self._str2bool(elem.childNodes[0].nodeValue)
+                    out[elem.nodeName] = self._str2bool(elem.childNodes[0].nodeValue)
                 except Exception as e:
                     pass # we just want to skip if we're unable to extract
         return out
