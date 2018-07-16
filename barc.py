@@ -26,6 +26,7 @@ import re
 date_format = r'%a, %d %b %Y %H:%M:%S %z'
 date_format_notz = r'%a, %d %b %Y %H:%M:%S'
 simple_datetime_format = r'%Y-%m-%d %H:%M:%S'
+simple_time_format = r'%H:%M:%S'
 
 search_by_property_relevance = 'exists ({0}) whose (it as string as lowercase {1} "{2}" as lowercase)'
 
@@ -1113,6 +1114,49 @@ class ActionSettings(BESCoreElement):
                 self.base_node.removeChild(n)
 
     @property
+    def HasTimeRange(self):
+        if not self._exists_child_elem('HasTimeRange'):
+            return None
+        return self._str2bool(self._value_for_elem('HasTimeRange'))
+    @HasTimeRange.setter
+    def HasTimeRange(self, newvalue):
+        if newvalue not in (True, False):
+            raise ValueError('HasTimeRange only accept true or false')
+        if not self._exists_child_elem('HasTimeRange'):
+            self._create_child_elem('HasTimeRange')
+        self._set_newvalue_for_elem('HasTimeRange', self._bool2str(newvalue))
+
+    @property
+    def TimeRange(self):
+        if not self._exists_child_elem('TimeRange'):
+            return None
+        tr_node = self._get_child_elem('TimeRange')
+        out = {'StartTime':None, 'EndTime':None}
+        for elem in tr_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName in out.keys():
+                try:
+                    out[elem.nodeName] = elem.childNodes[0].nodeValue
+                except Exception as e:
+                    pass
+        return out
+    @TimeRange.setter
+    def TimeRange(self, newvalue):
+        if not isinstance(newvalue, dict):
+            raise ValueError('TimeRange only accepts dictionary')
+        if not self._exists_child_elem('TimeRange'):
+            self._create_child_elem('TimeRange')
+        tr_node = self._get_child_elem('TimeRange')
+        while len(tr_node.childNodes) > 0:
+            tr_node.removeChild(tr_node.childNodes[0])
+        for x in ['StartTime', 'EndTime']:
+            sub_n = self.base_node.ownerDocument.createElement(x)
+            sub_n.appendChild(self.base_node.ownerDocument.createTextNode(newvalue[x].strftime(simple_time_format)))
+            tr_node.appendChild(sub_n)
+        if not self.HasTimeRange:
+            self.HasTimeRange = True
+     
+
+    @property
     def HasDayOfWeekConstraint(self):
         if not self._exists_child_elem('HasDayOfWeekConstraint'):
             return None
@@ -1138,7 +1182,7 @@ class ActionSettings(BESCoreElement):
         for elem in dwc_node.childNodes:
             if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName in out.keys():
                 try:
-                    out[ele.nodeName] = self._str2bool(elem.childNodes[0].nodeValue)
+                    out[elem.nodeName] = self._str2bool(elem.childNodes[0].nodeValue)
                 except Exception as e:
                     pass # we just want to skip if we're unable to extract
         return out
@@ -1172,6 +1216,52 @@ class ActionSettings(BESCoreElement):
         if not self._exists_child_elem('UseUTCTime'):
             self._create_child_elem('UseUTCTime')
         self._set_newvalue_for_elem('UseUTCTime', self._bool2str(newvalue))
+
+    @property
+    def HasWhose(self):
+        if not self._exists_child_elem('HasWhose'):
+            return None
+        return self._str2bool(self._value_for_elem('HasWhose'))
+    @HasWhose.setter
+    def HasWhose(self, newvalue):
+        if newvalue not in (True, False):
+            raise ValueError('HasWhose only accept true or false')
+        if not self._exists_child_elem('HasWhose'):
+            self._create_child_elem('HasWhose')
+        self._set_newvalue_for_elem('HasWhose', self._bool2str(newvalue))
+
+   
+    @property
+    def Whose(self):
+        if not self._exists_child_elem('Whose'):
+            return None
+        tr_node = self._get_child_elem('Whose')
+        out = {'Property':None, 'Relation':None, 'Value':None}
+        for elem in tr_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName in out.keys():
+                try:
+                    out[elem.nodeName] = elem.childNodes[0].nodeValue
+                except Exception as e:
+                    pass
+        return out
+    @Whose.setter
+    def Whose(self, newvalue):
+        if not isinstance(newvalue, dict):
+            raise ValueError('Whose only accepts dictionary')
+        if not self._exists_child_elem('Whose'):
+            self._create_child_elem('Whose')
+        whose_node = self._get_child_elem('Whose')
+        relation = ['matches', 'does not match', 'contains', 'does not contain', 'starts with', 'ends with', '=', '<', '>', '<=', '>=', '!=']
+        if newvalue['Relation'] not in relation:
+            raise ValueError('Not recognized relation. Can be only: matches, does not match, contains, does not contain, starts with, ends with, =, <, >, <=, >=, !=')
+        while len(whose_node.childNodes) > 0:
+            whose_node.removeChild(whose_node.childNodes[0])
+        for x in ['Property', 'Relation', 'Value']:
+            sub_n = self.base_node.ownerDocument.createElement(x)
+            sub_n.appendChild(self.base_node.ownerDocument.createTextNode(newvalue[x]))
+            whose_node.appendChild(sub_n)
+        if not self.HasWhose:
+            self.HasWhose = True
 
     @property
     def PreActionCacheDownload(self):
@@ -1217,8 +1307,8 @@ class ActionSettings(BESCoreElement):
         return self._value_for_elem('ReapplyLimit')
     @ReapplyLimit.setter
     def ReapplyLimit(self, newvalue):
-        if not isinstance(newvalue, int) or newvalue < 0:
-            raise ValueError('ReapplyLimit can only be non-negative integer')
+        if not isinstance(newvalue, int) or newvalue < 0 or newvalue > 999:
+            raise ValueError('ReapplyLimit can only be non-negative integer from range 0-999')
         if not self._exists_child_elem('ReapplyLimit'):
             self._create_child_elem('ReapplyLimit')
         self._set_newvalue_for_elem('ReapplyLimit', str(newvalue))
@@ -1271,8 +1361,8 @@ class ActionSettings(BESCoreElement):
             tmp = int(newvalue)
         except ValueError as e:
             raise ValueError('RetryCount has to be integer type')
-        if tmp <= 0:
-            raise ValueError('RetryCount has to be positive integer')
+        if tmp <= 0 or tmp > 999:
+            raise ValueError('RetryCount has to be positive integer from range 0-999')
         if not self._exists_child_elem('RetryCount'):
             self._create_child_elem('RetryCount')
         self._set_newvalue_for_elem('RetryCount', str(newvalue))
