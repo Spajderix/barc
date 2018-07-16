@@ -234,7 +234,7 @@ class ParameterProperty(object):
         # clear all current parameters
         while self._exists_child_elem('Parameter'):
             n = self._get_child_elem('Parameter')
-            self.base_node.removeChild('Parameter')
+            self.base_node.removeChild(n)
         for x in xrange(len(newvalue.keys())):
             self._create_child_elem('Parameter', False)
         plist = []
@@ -265,7 +265,7 @@ class ParameterProperty(object):
         # clear all current parameters
         while self._exists_child_elem('SecureParameter'):
             n = self._get_child_elem('SecureParameter')
-            self.base_node.removeChild('SecureParameter')
+            self.base_node.removeChild(n)
         for x in xrange(len(newvalue.keys())):
             self._create_child_elem('SecureParameter', False)
         plist = []
