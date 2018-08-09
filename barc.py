@@ -3764,6 +3764,136 @@ class APIAction(APIGenericContent):
 
 
 
+class APIActionResultsComputer(APIGenericContent):
+    @property
+    def Resource(self):
+        # because this one has no Resource
+        raise AttributeError('{0} object has no attribute "Resource"'.format(type(self)))
+
+    @property
+    def ID(self):
+        return self.base_node.getAttribute('ID')
+
+    @property
+    def Name(self):
+        return self.base_node.getAttribute('Name')
+
+    @property
+    def Status(self):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'Status':
+                return elem.childNodes[0].nodeValue
+        return None
+
+    @property
+    def State(self):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'State':
+                return elem.childNodes[0].nodeValue
+        return None
+
+    @property
+    def IsError(self):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'State':
+                ie_val = elem.getAttribute('IsError')
+                if ie_val in ('True', 'true', '1', 1):
+                    return True
+                else:
+                    return False
+        return None
+
+    @property
+    def ApplyCount(self):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'ApplyCount':
+                return elem.childNodes[0].nodeValue
+        return None
+
+    @property
+    def RetryCount(self):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'RetryCount':
+                return elem.childNodes[0].nodeValue
+        return None
+
+    @property
+    def LineNumber(self):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'LineNumber':
+                return elem.childNodes[0].nodeValue
+        return None
+
+    @property
+    def StartTime(self):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'StartTime':
+                return datetime.strptime(elem.childNodes[0].nodeValue[:-6], date_format_notz)
+        return None
+
+    @property
+    def EndTime(self):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'EndTime':
+                return datetime.strptime(elem.childNodes[0].nodeValue[:-6], date_format_notz)
+        return None
+
+class APIMemberActionResult(APIGenericContent):
+    @property
+    def ActionID(self):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'ActionID':
+                return elem.childNodes[0].nodeValue
+        return None
+
+    @property
+    def Computers(self):
+        def gen():
+            for elem in self.base_node.childNodes:
+                if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'Computer':
+                    yield APIActionResultsComputer(elem)
+        return tuple(gen())
+
+class APIActionResults(APIGenericContent):
+    @property
+    def ActionID(self):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'ActionID':
+                return elem.childNodes[0].nodeValue
+        return None
+
+    @property
+    def Status(self):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'Status':
+                return elem.childNodes[0].nodeValue
+        return None
+
+    @property
+    def DateIssued(self):
+        for elem in self.base_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'DateIssued':
+                return datetime.strptime(elem.childNodes[0].nodeValue[:-6], date_format_notz)
+        return None
+
+    @property
+    def Computers(self):
+        def gen():
+            for elem in self.base_node.childNodes:
+                if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'Computer':
+                    yield APIActionResultsComputer(elem)
+        return tuple(gen())
+
+    @property
+    def MemberActions(self):
+        def gen():
+            for elem in self.base_node.childNodes:
+                if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'MemberActionResult':
+                    yield APIMemberActionResult(elem)
+        return tuple(gen())
+
+
+
 class APIQuery(BESAPICoreElement):
     @property
     def Error(self):
@@ -3984,6 +4114,8 @@ class BESAPIContainer(CoreContainer):
                     self.elements.append(Role(elem))
                 elif elem.nodeName == 'SitePermission':
                     self.elements.append(SitePermission(elem))
+                elif elem.nodeName == 'ActionResults':
+                    self.elements.append(APIActionResults(elem))
                 else:
                     self.elements.append(BESAPICoreElement(elem))
 
