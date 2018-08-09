@@ -3375,6 +3375,94 @@ class Role(BESCoreElement):
 
 
 
+class SitePermission(BESCoreElement):
+    def __init__(self, *args, **kwargs):
+        self._base_node_name = 'SitePermission'
+        super(SitePermission, self).__init__(*args, **kwargs)
+        self._field_order = ('Permission', 'Operator', 'Role')
+    def _create_empty_element(self, *args, **kwargs):
+        super(SitePermission, self)._create_empty_element(*args, **kwargs)
+        perm_node = self.base_node.ownerDocument.createElement('Permission')
+        perm_node.appendChild(perm_node.ownerDocument.createTextNode('None'))
+        self.base_node.appendChild(perm_node)
+
+
+    @property
+    def Permission(self):
+        return self._value_for_elem('Permission')
+    @Permission.setter
+    def Permission(self, newval):
+        if newval not in ('Owner', 'Reader', 'Writer', 'None'):
+            raise ValueError('Permission can only be one of Owner, Reader, Writer or None')
+        if not self._exists_child_elem('Permission'):
+            self._create_child_elem('Permission')
+        self._set_newvalue_for_elem('Permission', newval)
+
+    @property
+    def Operator(self):
+        if self._exists_child_elem('Operator'):
+            res = self._get_child_elem('Operator').getAttribute('Resource')
+            try:
+                val = self._get_child_elem('Operator').childNodes[0].nodeValue
+            except IndexError as e:
+                val = None
+            return (val, res)
+        return None
+    @Operator.setter
+    def Operator(self, newval):
+        # first remove Role, if it exists
+        if self._exists_child_elem('Role'):
+            self.base_node.removeChild(self._get_child_elem('Role'))
+
+        if not self._exists_child_elem('Operator'):
+            self._create_child_elem('Operator')
+
+        if type(newval) in (tuple, list):
+            self._set_newvalue_for_elem('Operator', newval[0])
+            self._set_newattr_for_elem('Operator', 'Resource', newval[1])
+        elif isinstance(newval, Operator):
+            self._set_newvalue_for_elem('Operator', newval.Name)
+            self._set_newattr_for_elem('Operator', 'Resource', newval.Resource)
+        else:
+            raise ValueError('Operator can either be instance of Operator class or list/tuple of (operator name, operator resource')
+
+    @property
+    def Role(self):
+        if self._exists_child_elem('Role'):
+            res = self._get_child_elem('Role').getAttribute('Resource')
+            try:
+                val = self._get_child_elem('Role').childNodes[0].nodeValue
+            except IndexError as e:
+                val = None
+            return (val, res)
+        return None
+    @Role.setter
+    def Role(self, newval):
+        # first remove Role, if it exists
+        if self._exists_child_elem('Operator'):
+            self.base_node.removeChild(self._get_child_elem('Operator'))
+
+        if not self._exists_child_elem('Role'):
+            self._create_child_elem('Role')
+
+        if type(newval) in (tuple, list):
+            self._set_newvalue_for_elem('Role', newval[0])
+            self._set_newattr_for_elem('Role', 'Resource', newval[1])
+        elif isinstance(newval, Role):
+            self._set_newvalue_for_elem('Role', newval.Name)
+            self._set_newattr_for_elem('Role', 'Resource', newval.Resource)
+        else:
+            raise ValueError('Role can either be instance of Role class or list/tuple of ( role name, role resource )')
+
+    @property
+    def Resource(self):
+        return self.base_node.getAttribute('Resource')
+    @Resource.setter
+    def Resource(self, newvalue):
+        self.base_node.setAttribute('Resource', newvalue)
+
+
+
 
 class APIComputerProperties(object):
     __slots__ = ('_nodes_list',)
@@ -3894,6 +3982,8 @@ class BESAPIContainer(CoreContainer):
                     self.elements.append(Operator(elem))
                 elif elem.nodeName == 'Role':
                     self.elements.append(Role(elem))
+                elif elem.nodeName == 'SitePermission':
+                    self.elements.append(SitePermission(elem))
                 else:
                     self.elements.append(BESAPICoreElement(elem))
 
