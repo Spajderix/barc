@@ -3438,7 +3438,7 @@ class SitePermission(BESCoreElement):
         return None
     @Role.setter
     def Role(self, newval):
-        # first remove Role, if it exists
+        # first remove Operator, if it exists
         if self._exists_child_elem('Operator'):
             self.base_node.removeChild(self._get_child_elem('Operator'))
 
@@ -3460,6 +3460,225 @@ class SitePermission(BESCoreElement):
     @Resource.setter
     def Resource(self, newvalue):
         self.base_node.setAttribute('Resource', newvalue)
+
+
+
+class LDAPDirectory(BESCoreElement):
+    def __init__(self, *args, **kwargs):
+        self._base_node_name = 'LDAPDirectory'
+        super(LDAPDirectory, self).__init__(*args, **kwargs)
+        self._field_order = ('ID', 'Name', 'IsActiveDirectory', 'IsGlobalCatalog', 'UseSSL', 'AllowEmptyPasswords', 'BaseDN', 'UIDAttribute', 'UserFilter', 'GroupFilter', 'User', 'Password', 'Servers')
+
+
+    @property
+    def ID(self):
+        return self._value_for_elem('ID')
+    @ID.setter
+    def ID(self, newval):
+        try:
+            newval = int(newval)
+        except ValueError:
+            raise ValueError('ID must be an integer')
+        if newval < 0:
+            raise ValueError('ID mus be a positive integer')
+        if not self._exists_child_elem('ID'):
+            self._create_child_elem('ID')
+        self._set_newvalue_for_elem('ID', str(newval))
+
+    @property
+    def Name(self):
+        return self._value_for_elem('Name')
+    @Name.setter
+    def Name(self, newvalue):
+        if not self._exists_child_elem('Name'):
+            self._create_child_elem('Name')
+        self._set_newvalue_for_elem('Name', newvalue)
+
+    @property
+    def IsActiveDirectory(self):
+        if self._value_for_elem('IsActiveDirectory') is None:
+            return None
+        return self._str2bool(self._value_for_elem('IsActiveDirectory'))
+    @IsActiveDirectory.setter
+    def IsActiveDirectory(self, newvalue):
+        if newvalue not in (True, False):
+            raise ValueError('IsActiveDirectory can only be true or false')
+        if not self._exists_child_elem('IsActiveDirectory'):
+            self._create_child_elem('IsActiveDirectory')
+        self._set_newvalue_for_elem('IsActiveDirectory', self._bool2str(newvalue))
+
+    @property
+    def IsGlobalCatalog(self):
+        if self._value_for_elem('IsGlobalCatalog') is None:
+            return None
+        return self._str2bool(self._value_for_elem('IsGlobalCatalog'))
+    @IsGlobalCatalog.setter
+    def IsGlobalCatalog(self, newvalue):
+        if newvalue not in (True, False):
+            raise ValueError('IsGlobalCatalog can only be true or false')
+        if not self._exists_child_elem('IsGlobalCatalog'):
+            self._create_child_elem('IsGlobalCatalog')
+        self._set_newvalue_for_elem('IsGlobalCatalog', self._bool2str(newvalue))
+
+    @property
+    def UseSSL(self):
+        if self._value_for_elem('UseSSL') is None:
+            return None
+        return self._str2bool(self._value_for_elem('UseSSL'))
+    @UseSSL.setter
+    def UseSSL(self, newvalue):
+        if newvalue not in (True, False):
+            raise ValueError('UseSSL can only be true or false')
+        if not self._exists_child_elem('UseSSL'):
+            self._create_child_elem('UseSSL')
+        self._set_newvalue_for_elem('UseSSL', self._bool2str(newvalue))
+
+    @property
+    def AllowEmptyPasswords(self):
+        if self._value_for_elem('AllowEmptyPasswords') is None:
+            return None
+        return self._str2bool(self._value_for_elem('AllowEmptyPasswords'))
+    @AllowEmptyPasswords.setter
+    def AllowEmptyPasswords(self, newvalue):
+        if newvalue not in (True, False):
+            raise ValueError('AllowEmptyPasswords can only be true or false')
+        if not self._exists_child_elem('AllowEmptyPasswords'):
+            self._create_child_elem('AllowEmptyPasswords')
+        self._set_newvalue_for_elem('AllowEmptyPasswords', self._bool2str(newvalue))
+
+    @property
+    def BaseDN(self):
+        return self._value_for_elem('BaseDN')
+    @BaseDN.setter
+    def BaseDN(self, newvalue):
+        if not self._exists_child_elem('BaseDN'):
+            self._create_child_elem('BaseDN')
+        self._set_newvalue_for_elem('BaseDN', newvalue)
+
+    @property
+    def UIDAttribute(self):
+        return self._value_for_elem('UIDAttribute')
+    @UIDAttribute.setter
+    def UIDAttribute(self, newvalue):
+        if not self._exists_child_elem('UIDAttribute'):
+            self._create_child_elem('UIDAttribute')
+        self._set_newvalue_for_elem('UIDAttribute', newvalue)
+
+    @property
+    def UserFilter(self):
+        return self._value_for_elem('UserFilter')
+    @UserFilter.setter
+    def UserFilter(self, newvalue):
+        if not self._exists_child_elem('UserFilter'):
+            self._create_child_elem('UserFilter')
+        self._set_newvalue_for_elem('UserFilter', newvalue)
+
+    @property
+    def GroupFilter(self):
+        return self._value_for_elem('GroupFilter')
+    @GroupFilter.setter
+    def GroupFilter(self, newvalue):
+        if not self._exists_child_elem('GroupFilter'):
+            self._create_child_elem('GroupFilter')
+        self._set_newvalue_for_elem('GroupFilter', newvalue)
+
+    @property
+    def User(self):
+        return self._value_for_elem('User')
+    @User.setter
+    def User(self, newvalue):
+        if not self._exists_child_elem('User'):
+            self._create_child_elem('User')
+        self._set_newvalue_for_elem('User', newvalue)
+
+    @property
+    def Password(self):
+        return self._value_for_elem('Password')
+    @Password.setter
+    def Password(self, newvalue):
+        if not self._exists_child_elem('Password'):
+            self._create_child_elem('Password')
+        self._set_newvalue_for_elem('Password', newvalue)
+
+    @property
+    def Servers(self):
+        if not self._exists_child_elem('Servers'):
+            return None
+        srvs_node = self._get_child_elem('Servers')
+        res = []
+        for elem in srvs_node.childNodes:
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'Server':
+                host = ''
+                port = ''
+                prio = ''
+                for subelem in elem.childNodes:
+                    if subelem.nodeType == Node.ELEMENT_NODE:
+                        if subelem.nodeName == 'Host':
+                            try:
+                                host = subelem.childNodes[0].nodeValue
+                            except IndexError as e:
+                                host = ''
+                        elif subelem.nodeName == 'Port':
+                            try:
+                                port = subelem.childNodes[0].nodeValue
+                            except IndexError as e:
+                                port = ''
+                        elif subelem.nodeName == 'Priority':
+                            try:
+                                prio = subelem.childNodes[0].nodeValue
+                            except IndexError as e:
+                                prio = ''
+                res.append(  (host, port, prio)  )
+        return res
+
+    @Servers.setter
+    def Servers(self, newvalue):
+        if type(newvalue) not in (list, tuple):
+            raise ValueError('Servers can only be a list or a tuple')
+        if len(newvalue) > 4:
+            raise ValueError('You can only specify up to 4 servers for ldap directory')
+        # validate if the port and prio is positive integer
+        for elem in newvalue:
+            try:
+                port = int(elem[1])
+                prio = int(elem[2])
+            except ValueError as e:
+                raise ValueError('Port and Priority need to be positive integers')
+            else:
+                if port < 0 or prio < 0:
+                    raise ValueError('Port and Priority need to be positive integers')
+        # first check and create the tag if needed, or empty the current one
+        if self._exists_child_elem('Servers'):
+            # empty
+            snode = self._get_child_elem('Servers')
+            while len(snode.childNodes) > 0:
+                snode.removeChild(snode.childNodes[0])
+        else:
+            snode = self._create_child_elem('Servers')
+
+        # now add all Server nodes
+        for elem in newvalue:
+            srv_node = self.base_node.ownerDocument.createElement('Server')
+            host_node = self.base_node.ownerDocument.createElement('Host')
+            host_node.appendChild(host_node.ownerDocument.createTextNode(elem[0]))
+            port_node = self.base_node.ownerDocument.createElement('Port')
+            port_node.appendChild(port_node.ownerDocument.createTextNode(str(elem[1])))
+            prio_node = self.base_node.ownerDocument.createElement('Priority')
+            prio_node.appendChild(prio_node.ownerDocument.createTextNode(str(elem[2])))
+
+            srv_node.appendChild(host_node)
+            srv_node.appendChild(port_node)
+            srv_node.appendChild(prio_node)
+
+            snode.appendChild(srv_node)
+
+    @property
+    def Resource(self):
+        return self.base_node.getAttribute('Resource')
+    @Resource.setter
+    def Resource(self, newvalue):
+        self.base_node.setAttribute('Resource', newvalue)
+
 
 
 
@@ -4116,6 +4335,8 @@ class BESAPIContainer(CoreContainer):
                     self.elements.append(SitePermission(elem))
                 elif elem.nodeName == 'ActionResults':
                     self.elements.append(APIActionResults(elem))
+                elif elem.nodeName == 'LDAPDirectory':
+                    self.elements.append(LDAPDirectory(elem))
                 else:
                     self.elements.append(BESAPICoreElement(elem))
 
