@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright 2017 Spajderix <spajderix@gmail.com>
+# Copyright 2017-2018 Spajderix <spajderix@gmail.com>
 #
 # This library is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
@@ -4344,7 +4344,7 @@ class BESAPIContainer(CoreContainer):
 
 
 class Client(object):
-    __slots__ = ('hostname', 'port', 'user', 'password', 'rewrite_resource', '_verify_cert', '_ssl_c', '_urlopen_kwargs')
+    __slots__ = ('hostname', 'port', 'user', 'password', 'rewrite_resource', '_verify_cert', '_ssl_c', '_urlopen_kwargs', '_auth_token')
 
     def __init__(self, hostname, port, user, password, rewrite_resource=False, verify_certificate=False):
         self.hostname = hostname
@@ -4353,6 +4353,7 @@ class Client(object):
         self.password = password
         self.rewrite_resource = rewrite_resource
         self.verify_cert = verify_certificate
+        self._auth_token = None
 
     @property
     def verify_cert(self):
@@ -4383,16 +4384,37 @@ class Client(object):
         else:
             return 'https://{0}:{1}/api{2}'.format(self.hostname, self.port, resource)
 
+    def _build_auth_for_request(self, req):
+        if self._auth_token is not None:
+            req.add_header('SessionToken', self._auth_token)
+        else:
+            encoded_creds=b64encode('{0}:{1}'.format(self.user, self.password))
+            auth_token = 'Basic {0}'.format(encoded_creds)
+            req.add_header('Authorization', auth_token)
+        return req
+
     def _build_base_request(self, resource):
         if self.rewrite_resource:
             raise NotImplementedError()
         if resource[0] == '/':
             resource = self._build_resource_url(resource)
         req = Request(resource)
-        encoded_creds=b64encode('{0}:{1}'.format(self.user, self.password))
-        auth_token = 'Basic {0}'.format(encoded_creds)
-        req.add_header('Authorization', auth_token)
+        req = self._build_auth_for_request(req)
         return req
+
+    def login(self):
+        self._auth_token = None
+        req = self._build_base_request('/api/login')
+
+        o = urlopen(req, **self._urlopen_kwargs)
+        if o.code not in (200, 201):
+            raise ValueError('Exit code: {0}'.format(o.code))
+        else:
+            contents = o.read()
+            if contents == 'ok':
+                self._auth_token = o.headers['sessiontoken']
+                return True
+        return False
 
     def get(self, resource, raw_response=False):
         req = self._build_base_request(resource)
