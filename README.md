@@ -7,7 +7,7 @@ This library is distributed in the hope that it will be useful, but WITHOUT ANY 
 # HOWTO
 ## Client
 To communicate with BigFix server, Client class is used. It supports all request methods: get, post, put and delete. It assumes connections are made over HTTPS protocol. Constructor accepts following parameters:
-* hostname (required): hostname of ip address of BigFix server
+* hostname (required): hostname or ip address of BigFix server
 * port (required): port over which connections will be made
 * username (required): username for authentication
 * password (required): password for authentication
