@@ -3179,7 +3179,7 @@ class Role(BESCoreElement):
 
     @property
     def UnmanagedAssetPrivilege(self):
-        return self._str2bool(self._value_for_elem('UnmanagedAssetPrivilege'))
+        return self._value_for_elem('UnmanagedAssetPrivilege')
     @UnmanagedAssetPrivilege.setter
     def UnmanagedAssetPrivilege(self, newvalue):
         if newvalue not in ('ShowNone', 'ScanPoint', 'ShowAll'):
