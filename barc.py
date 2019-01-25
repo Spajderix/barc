@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright 2017-2018 Spajderix <spajderix@gmail.com>
 #
 # This library is free software: you can redistribute it and/or modify
@@ -14,13 +13,14 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 #
-from urllib import quote, urlencode
-from urllib2 import Request, urlopen
+from urllib.parse import quote, urlencode
+from urllib.request import Request, urlopen
 import ssl
 from base64 import b64encode
 from xml.dom.minidom import parseString, parse, getDOMImplementation, Node
 from datetime import datetime
 import re
+from io import IOBase
 
 
 date_format = r'%a, %d %b %Y %H:%M:%S %z'
@@ -66,7 +66,7 @@ class BESCoreElement(object):
 
     def _create_child_elem(self, ename, simple_elem = True):
         findex = None
-        for x in xrange(len(self._field_order)):
+        for x in range(len(self._field_order)):
             if self._field_order[x] == ename:
                 findex = x
                 break
@@ -90,7 +90,7 @@ class BESCoreElement(object):
 
     def _create_child_elem_with_attributes(self, ename, attrs={}, simple_elem = True):
         new_node = self._create_child_elem(ename, simple_elem)
-        for k,v in attrs.iteritems():
+        for k,v in attrs.items():
             tmp = new_node.setAttribute(k, v)
         return new_node
 
@@ -106,7 +106,7 @@ class BESCoreElement(object):
                 try:
                     return elem.childNodes[0].nodeValue
                 except IndexError as e:
-                    return u''
+                    return ''
         return None
 
     def _value_for_elem_attr(self, ename, attr_name):
@@ -236,13 +236,13 @@ class ParameterProperty(object):
         while self._exists_child_elem('Parameter'):
             n = self._get_child_elem('Parameter')
             self.base_node.removeChild(n)
-        for x in xrange(len(newvalue.keys())):
+        for x in range(len(list(newvalue.keys()))):
             self._create_child_elem('Parameter', False)
         plist = []
         for elem in self.base_node.childNodes:
             if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'Parameter':
                 plist.append(elem)
-        for k,v in newvalue.iteritems():
+        for k,v in newvalue.items():
             pnode = plist.pop(0)
             pnode.setAttribute('Name', k)
             pnode.appendChild(pnode.ownerDocument.createTextNode(v))
@@ -267,13 +267,13 @@ class ParameterProperty(object):
         while self._exists_child_elem('SecureParameter'):
             n = self._get_child_elem('SecureParameter')
             self.base_node.removeChild(n)
-        for x in xrange(len(newvalue.keys())):
+        for x in range(len(list(newvalue.keys()))):
             self._create_child_elem('SecureParameter', False)
         plist = []
         for elem in self.base_node.childNodes:
             if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName == 'SecureParameter':
                 plist.append(elem)
-        for k,v in newvalue.iteritems():
+        for k,v in newvalue.items():
             pnode = plist.pop(0)
             pnode.setAttribute('Name', k)
             pnode.appendChild(pnode.ownerDocument.createTextNode(v))
@@ -325,11 +325,11 @@ class MIMEFieldProperty(object):
         for elem in to_remove:
             self.base_node.removeChild(elem)
         # now add all new MIMEField elements
-        for x in xrange(len(newvalue)):
+        for x in range(len(newvalue)):
             self._create_child_elem('MIMEField')
         # and add all proper values
         m_nodes = self.base_node.getElementsByTagName('MIMEField')
-        for x in xrange(len(newvalue)):
+        for x in range(len(newvalue)):
             #r_nodes[x].childNodes[0].nodeValue = newvalue[x]
             self.base_node.replaceChild(newvalue[x].base_node, m_nodes[x])
 
@@ -354,11 +354,11 @@ class RelevanceProperty(object):
         for elem in to_remove:
             self.base_node.removeChild(elem)
         # now add all new relevance elements
-        for x in xrange(len(newvalue)):
+        for x in range(len(newvalue)):
             self._create_child_elem('Relevance')
         # and add all proper values
         r_nodes = self.base_node.getElementsByTagName('Relevance')
-        for x in xrange(len(newvalue)):
+        for x in range(len(newvalue)):
             r_nodes[x].childNodes[0].nodeValue = newvalue[x]
 
 
@@ -429,7 +429,7 @@ class ComputerGroup(BESCoreElement):
         return self._value_for_elem('Domain')
     @Domain.setter
     def Domain(self, newvalue):
-        if type(newvalue) not in (str, unicode):
+        if not isinstance(newvalue, str):
             raise TypeError('Needs to be string or unicode')
         if len(newvalue) != 4:
             raise ValueError('Domain needs to be exactly 4 characters long')
@@ -554,9 +554,9 @@ class ComputerGroup(BESCoreElement):
         }
 
     def _insert_relevance_node(self, definition):
-        if not definition.has_key('comparison'):
+        if 'comparison' not in definition:
             raise ValueError('Required component "comparison" missing for relevance based subscription definition')
-        elif not definition.has_key('relevance'):
+        elif 'relevance' not in definition:
             raise ValueError('Required component "relevance" missing for relevance based subscription definition')
         elif definition['comparison'] not in ('IsTrue', 'IsFalse'):
             raise ValueError('Comparison for relevance based subscription can only be "IsTrue" or "IsFalse"')
@@ -569,9 +569,9 @@ class ComputerGroup(BESCoreElement):
         return True
 
     def _insert_computergroup_node(self, definition):
-        if not definition.has_key('comparison'):
+        if 'comparison' not in definition:
             raise ValueError('Required component "comparison" missing for computer group based subscription definition')
-        elif not definition.has_key('group_name'):
+        elif 'group_name' not in definition:
             raise ValueError('Required component "group_name" missing for computer group based subscription definition')
         elif definition['comparison'] not in ('IsMember', 'IsNotMember'):
             raise ValueError('Comparison for computer group based subscription can only be "IsMember" or "IsNotMember"')
@@ -582,13 +582,13 @@ class ComputerGroup(BESCoreElement):
         return True
 
     def _insert_property_node(self, definition):
-        if not definition.has_key('comparison'):
+        if 'comparison' not in definition:
             raise ValueError('Required component "comparison" missing for property based subscription definition')
-        elif not definition.has_key('relevance'):
+        elif 'relevance' not in definition:
             raise ValueError('Required component "relevance" missing for property based subscription definition')
-        elif not definition.has_key('search_text'):
+        elif 'search_text' not in definition:
             raise ValueError('Required component "search_text" missing for property based subscription definition')
-        elif not definition.has_key('property_name'):
+        elif 'property_name' not in definition:
             raise ValueError('Required component "property_name" missing for property based subscription definition')
         elif definition['comparison'] not in ('Contains', 'DoesNotContain', 'Equals', 'DoesNotEqual'):
             raise ValueError('Comparison for computer group based subscription can only be "Contains", "DoesNotContain", "Equals", "DoesNotEqual"')
@@ -809,7 +809,7 @@ class BaseFixlet(BESCoreElement, MIMEFieldProperty, RelevanceProperty):
         return self._value_for_elem('Domain')
     @Domain.setter
     def Domain(self, newvalue):
-        if type(newvalue) not in (str, unicode):
+        if not isinstance(newvalue, str):
             raise TypeError('Needs to be string or unicode')
         if len(newvalue) != 4:
             raise ValueError('Domain needs to be exactly 4 characters long')
@@ -1133,7 +1133,7 @@ class ActionSettings(BESCoreElement):
         tr_node = self._get_child_elem('TimeRange')
         out = {'StartTime':None, 'EndTime':None}
         for elem in tr_node.childNodes:
-            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName in out.keys():
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName in list(out.keys()):
                 try:
                     out[elem.nodeName] = elem.childNodes[0].nodeValue
                 except Exception as e:
@@ -1180,7 +1180,7 @@ class ActionSettings(BESCoreElement):
         out = {'Sun': False, 'Mon': False, 'Tue': False, 'Wed': False, 'Thu': False, 'Fri': False, 'Sat': False}
         dwc_node = self._get_child_elem('DayOfWeekConstraint')
         for elem in dwc_node.childNodes:
-            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName in out.keys():
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName in list(out.keys()):
                 try:
                     out[elem.nodeName] = self._str2bool(elem.childNodes[0].nodeValue)
                 except Exception as e:
@@ -1238,7 +1238,7 @@ class ActionSettings(BESCoreElement):
         tr_node = self._get_child_elem('Whose')
         out = {'Property':None, 'Relation':None, 'Value':None}
         for elem in tr_node.childNodes:
-            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName in out.keys():
+            if elem.nodeType == Node.ELEMENT_NODE and elem.nodeName in list(out.keys()):
                 try:
                     out[elem.nodeName] = elem.childNodes[0].nodeValue
                 except Exception as e:
@@ -1811,9 +1811,9 @@ class SiteSubscription(BESCoreElement):
         }
 
     def _insert_relevance_node(self, definition):
-        if not definition.has_key('comparison'):
+        if 'comparison' not in definition:
             raise ValueError('Required component "comparison" missing for relevance based subscription definition')
-        elif not definition.has_key('relevance'):
+        elif 'relevance' not in definition:
             raise ValueError('Required component "relevance" missing for relevance based subscription definition')
         elif definition['comparison'] not in ('IsTrue', 'IsFalse'):
             raise ValueError('Comparison for relevance based subscription can only be "IsTrue" or "IsFalse"')
@@ -1827,9 +1827,9 @@ class SiteSubscription(BESCoreElement):
         return True
 
     def _insert_computergroup_node(self, definition):
-        if not definition.has_key('comparison'):
+        if 'comparison' not in definition:
             raise ValueError('Required component "comparison" missing for computer group based subscription definition')
-        elif not definition.has_key('group_name'):
+        elif 'group_name' not in definition:
             raise ValueError('Required component "group_name" missing for computer group based subscription definition')
         elif definition['comparison'] not in ('IsMember', 'IsNotMember'):
             raise ValueError('Comparison for computer group based subscription can only be "IsMember" or "IsNotMember"')
@@ -1841,13 +1841,13 @@ class SiteSubscription(BESCoreElement):
         return True
 
     def _insert_property_node(self, definition):
-        if not definition.has_key('comparison'):
+        if 'comparison' not in definition:
             raise ValueError('Required component "comparison" missing for property based subscription definition')
-        elif not definition.has_key('relevance'):
+        elif 'relevance' not in definition:
             raise ValueError('Required component "relevance" missing for property based subscription definition')
-        elif not definition.has_key('search_text'):
+        elif 'search_text' not in definition:
             raise ValueError('Required component "search_text" missing for property based subscription definition')
-        elif not definition.has_key('property_name'):
+        elif 'property_name' not in definition:
             raise ValueError('Required component "property_name" missing for property based subscription definition')
         elif definition['comparison'] not in ('Contains', 'DoesNotContain', 'Equals', 'DoesNotEqual'):
             raise ValueError('Comparison for computer group based subscription can only be "Contains", "DoesNotContain", "Equals", "DoesNotEqual"')
@@ -2201,7 +2201,7 @@ class BESActionSourceFixlet(BESCoreElement):
         return self._value_for_elem('GatherURL')
     @GatherURL.setter
     def GatherURL(self, newvalue):
-        if isinstance(newvalue, (str, unicode)):
+        if isinstance(newvalue, str):
             pass # we do nothing, newvalue is our new value
         elif isinstance(newvalue, (Site, APIGenericSite)):
             newvalue = newvalue.GatherURL # we're extracting actual value from object
@@ -2221,7 +2221,7 @@ class BESActionSourceFixlet(BESCoreElement):
         return self._value_for_elem('Sitename')
     @Sitename.setter
     def Sitename(self, newvalue):
-        if isinstance(newvalue, (str, unicode)):
+        if isinstance(newvalue, str):
             pass # we do nothing, newvalue is our new value
         elif isinstance(newvalue, (Site, APIGenericSite)):
             newvalue = newvalue.Name
@@ -2413,7 +2413,7 @@ class SourcedFixletAction(BESCoreElement, ParameterProperty):
         return self._value_for_elem('Title')
     @Title.setter
     def Title(self, newvalue):
-        if not isinstance(newvalue, (str, unicode)):
+        if not isinstance(newvalue, str):
             raise ValueError('Title can only be str or unicode')
         if len(newvalue) < 1 or len(newvalue) > 255:
             raise ValueError('Title can only be 1 to 255 characters long')
@@ -2475,7 +2475,7 @@ class SingleAction(BESCoreElement, ActionScriptProperty, SuccessCriteriaProperty
         return self._value_for_elem('Title')
     @Title.setter
     def Title(self, newvalue):
-        if not isinstance(newvalue, (str, unicode)):
+        if not isinstance(newvalue, str):
             raise ValueError('Title should be a string')
         if len(newvalue) < 1 or len(newvalue) > 255:
             raise ValueError('Title needs to be at least 1 character and at most 255 characters')
@@ -2488,7 +2488,7 @@ class SingleAction(BESCoreElement, ActionScriptProperty, SuccessCriteriaProperty
         return self._value_for_elem('Relevance')
     @Relevance.setter
     def Relevance(self, newvalue):
-        if not isinstance(newvalue, (str, unicode)):
+        if not isinstance(newvalue, str):
             raise ValueError('Relevance should be a string')
         if not self._exists_child_elem('Relevance'):
             self._create_child_elem('Relevance')
@@ -2521,7 +2521,7 @@ class SingleAction(BESCoreElement, ActionScriptProperty, SuccessCriteriaProperty
         return self._value_for_elem('Domain')
     @Domain.setter
     def Domain(self, newvalue):
-        if type(newvalue) not in (str, unicode):
+        if not isinstance(newvalue, str):
             raise TypeError('Needs to be string or unicode')
         if len(newvalue) != 4:
             raise ValueError('Domain needs to be exactly 4 characters long')
@@ -2623,11 +2623,11 @@ class OperatorComputerAssignments(BESCoreElement):
         }
 
     def _insert_bygroup_node(self, definition):
-        if not definition.has_key('group_name'):
+        if 'group_name' not in definition:
             raise ValueError('Required component "group_name" missing for computer group based assignment definition')
-        elif not definition.has_key('group_resource'):
+        elif 'group_resource' not in definition:
             raise ValueError('Required component "group_resource" missing for computer group based assignment definition')
-        elif not definition.has_key('group_type'):
+        elif 'group_type' not in definition:
             raise ValueError('Required component "group_type" missing for computer group based assignment definition')
         elif definition['group_type'] not in ('Automatic', 'Manual'):
             raise ValueError('group_type for computer group based assignment can only be "Automatic" or "Manual"')
@@ -2641,7 +2641,7 @@ class OperatorComputerAssignments(BESCoreElement):
         return True
 
     def _insert_byad_node(self, definition):
-        if not definition.has_key('distinguished_name'):
+        if 'distinguished_name' not in definition:
             raise ValueError('Required component "distinguished_name" missing for AD based assignment definition')
         main_node = self.base_node.ownerDocument.createElement('ByActiveDirectory')
         dn_node = main_node.ownerDocument.createElement('DistinguishedName')
@@ -2652,13 +2652,13 @@ class OperatorComputerAssignments(BESCoreElement):
         return True
 
     def _insert_byproperty_node(self, definition):
-        if not definition.has_key('property_name'):
+        if 'property_name' not in definition:
             raise ValueError('Required component "property_name" missing for property based assignment definition')
-        elif not definition.has_key('property_value'):
+        elif 'property_value' not in definition:
             raise ValueError('Required component "property_value" missing for property based assignment definition')
-        elif not definition.has_key('property_resource'):
+        elif 'property_resource' not in definition:
             raise ValueError('Required component "property_resource" missing for property based assignment definition')
-        elif not definition.has_key('property_relevance'):
+        elif 'property_relevance' not in definition:
             raise ValueError('Required component "property_relevance" missing for property based assignment definition')
 
         main_node = self.base_node.ownerDocument.createElement('ByRetrievedProperties')
@@ -3266,7 +3266,7 @@ class Role(BESCoreElement):
         else:
             main_node = self._create_child_elem('LDAPGroups', False)
         for grdef in newvalue:
-            if type(grdef) is not dict or not grdef.has_key('Name') or not grdef.has_key('DN') or not grdef.has_key('ServerID'):
+            if type(grdef) is not dict or 'Name' not in grdef or 'DN' not in grdef or 'ServerID' not in grdef:
                 raise ValueError('Each LDAPGRoups component needs to be a dict with required following keys: "Name", "DN", "ServerID"')
 
             gr_node = main_node.ownerDocument.createElement('Group')
@@ -3696,11 +3696,11 @@ class APIComputerProperties(object):
         return len(self._nodes_list)
 
     def __getitem__(self, key):
-        if type(key) not in (str, unicode):
+        if not isinstance(key, str):
             raise TypeError('Key should be a string or unicode')
-        if self.keys().count(key) == 0:
+        if list(self.keys()).count(key) == 0:
             raise KeyError('Key {0} does not exist'.format(key))
-        elif self.keys().count(key) > 1:
+        elif list(self.keys()).count(key) > 1:
             tmplist = []
             for elem in self._nodes_list:
                 if elem.attributes['Name'].nodeValue == key:
@@ -3724,10 +3724,10 @@ class APIComputerProperties(object):
     def values(self):
         return [elem.childNodes[0].nodeValue for elem in self._nodes_list]
     def has_key(self, key):
-        return key in self.keys()
+        return key in list(self.keys())
     def iteritems(self):
         uniq_keys = []
-        for elem in self.keys():
+        for elem in list(self.keys()):
             if elem not in uniq_keys:
                 uniq_keys.append(elem)
         for elem in uniq_keys:
@@ -4174,7 +4174,7 @@ class CoreContainer(object):
         self.xmlo = None
         self.elements = []
 
-        if type(file_or_contents) in (str, unicode, file):
+        if isinstance(file_or_contents, (str, IOBase)):
             self._parse_content(file_or_contents)
         elif file_or_contents == None:
             self._create_empty_container()
@@ -4248,7 +4248,7 @@ class CoreContainer(object):
         self.base_node.appendChild(self.xmlo.createTextNode(''))
 
     def _parse_content(self, content):
-        if type(content) in (str, unicode):
+        if isinstance(content, str):
             self.xmlo = parseString(content)
         else:
             self.xmlo = parse(content)
@@ -4388,7 +4388,7 @@ class Client(object):
         if self._auth_token is not None:
             req.add_header('SessionToken', self._auth_token)
         else:
-            encoded_creds=b64encode('{0}:{1}'.format(self.user, self.password))
+            encoded_creds=b64encode('{0}:{1}'.format(self.user, self.password).encode()).decode()
             auth_token = 'Basic {0}'.format(encoded_creds)
             req.add_header('Authorization', auth_token)
         return req
@@ -4411,7 +4411,7 @@ class Client(object):
             raise ValueError('Exit code: {0}'.format(o.code))
         else:
             contents = o.read()
-            if contents == 'ok':
+            if contents == b'ok':
                 self._auth_token = o.headers['sessiontoken']
                 return True
         return False
@@ -4423,7 +4423,7 @@ class Client(object):
         if o.code not in (200, 201):
             raise ValueError('Exit code: {0}'.format(o.code))
         else:
-            contents = o.read()
+            contents = o.read().decode()
             if raw_response:
                 return contents
             if re.search(r'\<BESAPI\s+', contents[:150], re.MULTILINE) != None:
@@ -4440,15 +4440,15 @@ class Client(object):
             raw_response = True
         elif data is not None:
             if isinstance(data, BESContainer) or isinstance(data, BESAPIContainer):
-                req.add_data(data.base_node.toxml())
+                req.data = data.base_node.toxml().encode()
             else:
-                req.add_data(data)
+                req.data = data.encode()
 
         o = urlopen(req, **self._urlopen_kwargs)
         if o.code not in (200, 201):
             raise ValueError('Exit code: {0}'.format(o.code))
         else:
-            contents = o.read()
+            contents = o.read().decode()
             if raw_response:
                 return contents
             if re.search(r'\<BESAPI\s+', contents[:150], re.MULTILINE) != None:
@@ -4464,16 +4464,16 @@ class Client(object):
             raw_response = True
         elif data is not None:
             if isinstance(data, BESContainer) or isinstance(data, BESAPIContainer):
-                req.add_data(data.base_node.toxml())
+                req.data = data.base_node.toxml().encode()
             else:
-                req.add_data(data)
+                req.data = data.encode()
         req.get_method = lambda: 'PUT'
 
         o = urlopen(req, **self._urlopen_kwargs)
         if o.code not in (200, 201):
             raise ValueError('Exit code: {0}'.format(o.code))
         else:
-            contents = o.read()
+            contents = o.read().decode()
             if raw_response:
                 return contents
             if re.search(r'\<BESAPI\s+', contents[:150], re.MULTILINE) != None:
@@ -4491,7 +4491,7 @@ class Client(object):
         if o.code not in (200, 201):
             raise ValueError('Exit code: {0}'.format(o.code))
         else:
-            contents = o.read()
+            contents = o.read().decode()
             if raw_response:
                 return contents
             if re.search(r'\<BESAPI\s+', contents, re.MULTILINE) != None:
