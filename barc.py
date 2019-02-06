@@ -3186,7 +3186,7 @@ class Role(BESCoreElement):
             raise ValueError('UnmanagedAssetPrivilege can be one of "ShowNone", "ScanPoint", "ShowAll"')
         if not self._exists_child_elem('UnmanagedAssetPrivilege'):
             self._create_child_elem('UnmanagedAssetPrivilege')
-        self._set_newvalue_for_elem('UnmanagedAssetPrivilege', self._bool2str(newvalue))
+        self._set_newvalue_for_elem('UnmanagedAssetPrivilege', newvalue)
 
     @property
     def InterfaceLogins(self):
